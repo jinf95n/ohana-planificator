@@ -24,7 +24,7 @@ const plans = [
 
 export const ProPlans = () => {
   return (
-    <section className="bg-gradient-pro text-cream py-24 sm:py-32 relative overflow-hidden">
+    <section id="pro-plans" className="bg-gradient-pro text-cream py-24 sm:py-32 relative overflow-hidden">
       {/* ambient glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-coral/10 blur-[150px] pointer-events-none" />
 
@@ -36,8 +36,9 @@ export const ProPlans = () => {
           <h2 className="font-display text-5xl sm:text-6xl mt-6 leading-tight">
             Lleva tu aula al <span className="text-gradient-coral">siguiente nivel</span>
           </h2>
-          <p className="font-serif-elegant italic text-cream/70 text-lg mt-4">
-            Herramientas pensadas por docentes, potenciadas por la mejor IA.
+          <p className="font-serif-elegant text-cream/90 text-xl sm:text-2xl mt-5 leading-relaxed">
+            Herramientas pensadas por docentes,{" "}
+            <span className="italic text-cream">potenciadas por la mejor IA.</span>
           </p>
         </div>
 

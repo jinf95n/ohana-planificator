@@ -7,6 +7,7 @@ import { PlanificationSkeleton } from "@/components/PlanificationSkeleton";
 import { PlanificationResult } from "@/components/PlanificationResult";
 import { ProPlans } from "@/components/ProPlans";
 import { PartnersBar } from "@/components/PartnersBar";
+import { FreePreviewExample } from "@/components/FreePreviewExample";
 
 type ResultState =
   | { status: "idle" }
@@ -131,11 +132,14 @@ const Index = () => {
                 </div>
               </div>
             ) : (
-              <PlanForm
-                isLoggedIn={isLoggedIn}
-                onLoginRequired={handleLogin}
-                onSubmit={handleGenerate}
-              />
+              <>
+                <PlanForm
+                  isLoggedIn={isLoggedIn}
+                  onLoginRequired={handleLogin}
+                  onSubmit={handleGenerate}
+                />
+                <FreePreviewExample />
+              </>
             )}
           </div>
         </div>
