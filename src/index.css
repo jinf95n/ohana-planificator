@@ -154,3 +154,10 @@
   }
   .animate-fade-up { animation: fade-up 0.7s var(--ease-smooth) both; }
 }
+
+.bg-gradient-ink {
+  background: linear-gradient(180deg, hsl(36 95% 70%) 0%, hsl(30 80% 62%) 100%);
+}
+.shadow-coral-lg {
+  box-shadow: 0 25px 60px -15px hsl(6 85% 55% / 0.65);
+}
