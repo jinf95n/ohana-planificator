@@ -30,7 +30,7 @@ const Index = () => {
 
   // ─── Auth real con Clerk ─────────────────────────────────────
   const { isSignedIn, user } = useUser();
-  const { openSignIn } = useClerk();
+  const { openSignIn, signOut } = useClerk();
 
   // ─── Plan del usuario ────────────────────────────────────────
   // Lee el plan desde los publicMetadata de Clerk
@@ -115,7 +115,7 @@ const Index = () => {
           userName={userName}
           onLogin={handleLoginRequired}
           onLogout={() => {
-            useClerk().signOut();
+            signOut();
             setResult({ status: "idle" });
           }}
         />
