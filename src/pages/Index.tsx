@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { ArrowDown, Sparkles, Crown, CheckCircle2, Users, Star, Clock3 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { OhanaLogo } from "@/components/OhanaLogo";
 import { PlanForm, PlanFormData } from "@/components/PlanForm";
@@ -8,24 +9,33 @@ import { PlanificationResult } from "@/components/PlanificationResult";
 import { ProPlans } from "@/components/ProPlans";
 import { PartnersBar } from "@/components/PartnersBar";
 import { FreePreviewExample } from "@/components/FreePreviewExample";
+import { HowItWorks } from "@/components/HowItWorks";
+import { generarPlanificacion } from "@/services/generation";
 
 type ResultState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "ready"; content: string; meta: PlanFormData };
+  | { status: "ready"; content: string; meta: PlanFormData; tipo: "free" | "pro" };
+
+const STATS = [
+  { icon: <Users className="w-4 h-4" />, value: "400+", label: "docentes" },
+  { icon: <Star className="w-4 h-4" />, value: "4.9", label: "valoración" },
+  { icon: <Clock3 className="w-4 h-4" />, value: "30 seg", label: "promedio" },
+];
 
 const Index = () => {
-  // ───── Auth (mock) ─────
-  // TODO: Replace with real auth (Clerk / Lovable Cloud Google+Apple).
-  // The login button should trigger the social OAuth flow here.
+  const formRef = useRef<HTMLDivElement>(null);
+  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState<string | undefined>();
+  const [isPro, setIsPro] = useState(false);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
     setUserName("Docente");
     toast.success("¡Bienvenida a Ohana!", {
-      description: "Ya puedes generar tu planificación gratuita del día.",
+      description: "Ya podés generar tu planificación gratuita del día.",
     });
   };
 
@@ -35,97 +45,108 @@ const Index = () => {
     setResult({ status: "idle" });
   };
 
-  // ───── Form / generation ─────
   const [result, setResult] = useState<ResultState>({ status: "idle" });
 
   const handleGenerate = async (data: PlanFormData) => {
     setResult({ status: "loading" });
-
     try {
-      // ─────────────────────────────────────────────────────────────
-      // 🔌 BACKEND INTEGRATION POINT
-      //
-      // Aquí se llama al endpoint del backend. Recomendado:
-      //   POST /api/generate-plan  (Next.js API Route o Lovable Cloud Edge Function)
-      //
-      // Esa ruta debe:
-      //   1. Verificar la sesión del usuario (Clerk auth() / Supabase auth.getUser())
-      //   2. Consultar la cuota diaria en la base de datos
-      //         → SELECT count(*) FROM generations
-      //           WHERE user_id = ? AND created_at >= date_trunc('day', now())
-      //         → si >= 1 (free tier) devolver 429 con upgrade hint
-      //   3. Llamar al webhook de n8n con el payload del formulario:
-      //         await fetch(process.env.N8N_WEBHOOK_URL, {
-      //           method: "POST",
-      //           headers: { Authorization: `Bearer ${process.env.N8N_SECRET}` },
-      //           body: JSON.stringify(data),
-      //         })
-      //   4. Guardar la generación en DB y devolver la respuesta del LLM.
-      //
-      // const res = await fetch("/api/generate-plan", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(data),
-      // });
-      // const { content } = await res.json();
-      // ─────────────────────────────────────────────────────────────
-
-      // MOCK: simulamos latencia del LLM via n8n
-      await new Promise((r) => setTimeout(r, 2400));
-
-      const content = buildMockPlan(data);
-      setResult({ status: "ready", content, meta: data });
+      const plan = await generarPlanificacion(
+        {
+          docente: data.docente,
+          institucion: data.institucion,
+          grado: data.grado,
+          materia: data.materia,
+          fecha: data.fecha,
+          duracion: data.duracion,
+          tema: data.tema,
+          objetivo: data.objetivo,
+          contexto: data.contexto,
+        },
+        isPro
+      );
+      setResult({ status: "ready", content: plan.content, meta: data, tipo: plan.tipo });
     } catch (err) {
-      console.error(err);
-      toast.error("No pudimos generar tu planificación", {
-        description: "Inténtalo de nuevo en unos segundos.",
-      });
+      const mensaje = err instanceof Error ? err.message : "Error desconocido";
+      toast.error("No pudimos generar tu planificación", { description: mensaje });
       setResult({ status: "idle" });
     }
   };
 
+  const esResultado = result.status === "ready" || result.status === "loading";
+
   return (
     <main className="min-h-screen">
-      {/* ───────── HERO (warm pastel) ───────── */}
-      <section className="relative bg-gradient-warm pt-24 pb-32 sm:pb-40 overflow-hidden">
-        {/* soft ambient highlights */}
-        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-cream/30 blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-coral/15 blur-[140px] pointer-events-none" />
 
-        <Navbar
-          isLoggedIn={isLoggedIn}
-          userName={userName}
-          onLogin={handleLogin}
-          onLogout={handleLogout}
-        />
+      {/* ═══ HERO ═══════════════════════════════════════════════ */}
+      <section className="relative bg-gradient-warm overflow-hidden">
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-cream/25 blur-[120px] pointer-events-none" />
+        <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-coral/12 blur-[140px] pointer-events-none" />
 
-        <div className="container relative pt-12">
-          <OhanaLogo className="mb-12" />
+        <Navbar isLoggedIn={isLoggedIn} userName={userName} onLogin={handleLogin} onLogout={handleLogout} />
 
-          <div className="max-w-3xl mx-auto text-center text-cream mb-12 animate-fade-up">
+        <div className="container relative pt-10 pb-20 sm:pb-28">
+          <OhanaLogo className="mb-10" />
+
+          <div className="max-w-3xl mx-auto text-center text-cream mb-10 animate-fade-up">
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl leading-[1.05]">
-              Ohana Planificación Inteligente
+              Tu clase de mañana,<br />lista esta noche.
             </h1>
-            <p className="font-serif-elegant text-xl sm:text-2xl mt-3 text-cream/95">
-              Tu clase del día, personalizada y gratuita.
+            <p className="font-serif-elegant text-lg sm:text-xl mt-5 text-cream/85 max-w-2xl mx-auto leading-relaxed">
+              Llegás a casa cansada. Mañana tenés que presentar la planificación.
+              <br className="hidden sm:block" />
+              <span className="text-cream font-medium"> Ohana la genera en segundos — gratis, sin vueltas.</span>
             </p>
-            <h2 className="font-serif-elegant italic text-base sm:text-lg mt-6 text-cream/85 max-w-2xl mx-auto leading-relaxed">
-              De la mano de Ohana, apoyada por la mejor tecnología, libera tu tiempo
-              y concéntrate en lo que más importa: tus alumnos.
-            </h2>
           </div>
 
-          {/* Form / Skeleton / Result swap */}
-          <div className="px-2">
+          {!esResultado && (
+            <>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
+                <button
+                  onClick={scrollToForm}
+                  className="group flex items-center gap-2 bg-coral text-cream font-semibold px-8 py-3.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-base"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generar planificación gratis
+                  <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                </button>
+                <span className="text-cream/50 text-sm">Sin registrarte · Sin tarjeta</span>
+              </div>
+
+              <div className="flex items-center justify-center gap-6 sm:gap-10 mb-14 animate-fade-up" style={{ animationDelay: "0.18s" }}>
+                {STATS.map((s) => (
+                  <div key={s.label} className="flex flex-col items-center text-cream">
+                    <div className="flex items-center gap-1.5 text-cream/60 mb-0.5">
+                      {s.icon}
+                      <span className="text-[11px] uppercase tracking-widest font-semibold">{s.label}</span>
+                    </div>
+                    <span className="font-display text-2xl leading-none">{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {import.meta.env.DEV && (
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setIsPro((p) => !p)}
+                className={`text-xs px-4 py-1.5 rounded-full border transition-all ${isPro ? "bg-amber-300/20 border-amber-300/40 text-amber-300" : "bg-cream/10 border-cream/20 text-cream/60"}`}
+              >
+                {isPro ? "✦ Modo PRO activo" : "Modo FREE activo"} — clic para cambiar
+              </button>
+            </div>
+          )}
+
+          <div ref={formRef} className="px-2 scroll-mt-8">
             {result.status === "loading" ? (
               <PlanificationSkeleton />
             ) : result.status === "ready" ? (
               <div className="space-y-8">
-                <PlanificationResult content={result.content} meta={result.meta} />
+                <PlanificationResult content={result.content} meta={result.meta} tipo={result.tipo} />
                 <div className="text-center">
                   <button
                     onClick={() => setResult({ status: "idle" })}
-                    className="text-cream/90 hover:text-cream underline underline-offset-4 text-sm font-medium"
+                    className="text-cream/80 hover:text-cream underline underline-offset-4 text-sm font-medium transition-colors"
                   >
                     ← Generar otra planificación
                   </button>
@@ -133,11 +154,7 @@ const Index = () => {
               </div>
             ) : (
               <>
-                <PlanForm
-                  isLoggedIn={isLoggedIn}
-                  onLoginRequired={handleLogin}
-                  onSubmit={handleGenerate}
-                />
+                <PlanForm isLoggedIn={isLoggedIn} isPro={isPro} onLoginRequired={handleLogin} onSubmit={handleGenerate} />
                 <FreePreviewExample />
               </>
             )}
@@ -145,38 +162,79 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ───────── PRO PLANS (dark) ───────── */}
+      {/* ═══ CÓMO FUNCIONA ══════════════════════════════════════ */}
+      {!esResultado && (
+        <section className="bg-gradient-ink">
+          <HowItWorks />
+        </section>
+      )}
+
+      {/* ═══ FREE vs PRO ════════════════════════════════════════ */}
+      {!esResultado && <ComparativaFreePro onScrollToForm={scrollToForm} />}
+
+      {/* ═══ PLANES ═════════════════════════════════════════════ */}
       <ProPlans />
 
-      {/* ───────── PARTNERS / FOOTER ───────── */}
+      {/* ═══ FOOTER ═════════════════════════════════════════════ */}
       <PartnersBar />
     </main>
   );
 };
 
-// ───────── Mock content (will be replaced by n8n LLM response) ─────────
-const buildMockPlan = (d: PlanFormData) => `📚 PLANIFICACIÓN DEL DÍA
-Materia: ${d.materia} · ${d.grado}
-Tema: ${d.tema}
+// ─── Tabla comparativa FREE vs PRO ───────────────────────────────
+const FILAS = [
+  { label: "Planificación completa (inicio, desarrollo, cierre)", free: true, pro: true },
+  { label: "Objetivo y contenidos didácticos", free: true, pro: true },
+  { label: "Recursos sugeridos y evaluación", free: true, pro: true },
+  { label: "Contexto de tu grupo real", free: false, pro: true },
+  { label: "Tips exclusivos para el docente", free: false, pro: true },
+  { label: "Descarga en PDF con formato institucional", free: false, pro: true },
+  { label: "Planificaciones ilimitadas", free: false, pro: true },
+];
 
-🎯 OBJETIVO DE APRENDIZAJE
-${d.objetivo}
+const ComparativaFreePro = ({ onScrollToForm }: { onScrollToForm: () => void }) => (
+  <section className="py-20 bg-cream-soft">
+    <div className="container">
+      <p className="text-center text-ink/40 text-xs tracking-[0.3em] uppercase font-semibold mb-3">¿Cuál es para mí?</p>
+      <h2 className="font-display text-3xl sm:text-4xl text-ink text-center mb-12">Gratis o Pro — las dos funcionan</h2>
 
-⏱ INICIO (10 min)
-Activamos saberes previos con una pregunta disparadora vinculada a la vida cotidiana de los estudiantes. Generamos una breve lluvia de ideas y registramos las hipótesis en el pizarrón.
+      <div className="max-w-2xl mx-auto bg-cream rounded-3xl border border-cream-soft shadow-card-pro overflow-hidden">
+        <div className="grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-4 bg-brand/10 border-b border-cream-soft">
+          <span />
+          <span className="text-center text-ink/50 text-xs font-semibold uppercase tracking-widest">Free</span>
+          <span className="text-center text-amber-700 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-1">
+            <Crown className="w-3 h-3" /> Pro
+          </span>
+        </div>
 
-🔬 DESARROLLO (25 min)
-Presentamos el contenido central a través de un recurso visual (video corto o infografía). Los estudiantes trabajan en parejas resolviendo una guía con preguntas que profundizan en el tema. Acompañamos recorriendo los grupos.
+        {FILAS.map((fila, i) => (
+          <div key={i} className={`grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-3.5 items-center ${i < FILAS.length - 1 ? "border-b border-cream-soft/60" : ""}`}>
+            <span className="text-ink/75 text-sm font-serif-elegant">{fila.label}</span>
+            <span className="flex justify-center">
+              {fila.free ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />}
+            </span>
+            <span className="flex justify-center">
+              {fila.pro ? <CheckCircle2 className="w-4 h-4 text-amber-500" /> : <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />}
+            </span>
+          </div>
+        ))}
 
-✨ CIERRE (10 min)
-Puesta en común: cada pareja comparte una conclusión. Sintetizamos los aprendizajes clave y conectamos con la próxima clase.
-
-📝 EVALUACIÓN
-Observación directa del trabajo en pareja + entrega de la guía completada.
-
-💡 RECURSOS
-Pizarrón, proyector, guía impresa, materiales concretos según tema.
-
-— Generado por Ohana Planificación Inteligente`;
+        <div className="grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-5 bg-brand/5 border-t border-cream-soft">
+          <span />
+          <div className="flex justify-center">
+            <button onClick={onScrollToForm} className="text-xs text-ink/60 hover:text-ink underline underline-offset-2 transition-colors whitespace-nowrap">
+              Empezar gratis
+            </button>
+          </div>
+          <div className="flex justify-center">
+            <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200 whitespace-nowrap">
+              Próximamente
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
 
 export default Index;
