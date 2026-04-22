@@ -13,7 +13,6 @@ interface PlanificationResultProps {
   tipo: "free" | "pro";
 }
 
-// ─── Parser de secciones ────────────────────────────────────────
 interface Section {
   key: string;
   title: string;
@@ -21,7 +20,51 @@ interface Section {
   tiempo?: string;
 }
 
+// ─── Limpia markers de markdown de un título ────────────────────
+function limpiarTitulo(txt: string): string {
+  return txt.replace(/\*\*/g, "").replace(/\*/g, "").trim();
+}
+
+// ─── Renderer de markdown simple ────────────────────────────────
+// Convierte **negrita**, *cursiva*, listas y saltos en JSX
+function renderMarkdown(texto: string): React.ReactNode {
+  const lineas = texto.split("\n");
+
+  return lineas.map((linea, i) => {
+    const esLista = /^[-*]\s/.test(linea);
+    const esNumerada = /^\d+\.\s/.test(linea);
+    const contenido = linea.replace(/^[-*]\s/, "").replace(/^\d+\.\s/, "");
+
+    const partes = contenido.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((parte, j) => {
+      if (/^\*\*[^*]+\*\*$/.test(parte)) {
+        return <strong key={j} className="font-semibold text-ink/90">{parte.slice(2, -2)}</strong>;
+      }
+      if (/^\*[^*]+\*$/.test(parte)) {
+        return <em key={j} className="italic">{parte.slice(1, -1)}</em>;
+      }
+      return parte;
+    });
+
+    if (esLista || esNumerada) {
+      return (
+        <div key={i} className="flex gap-2 my-0.5">
+          <span className="text-ink/40 shrink-0 mt-0.5">{esNumerada ? `${linea.match(/^\d+/)?.[0]}.` : "•"}</span>
+          <span>{partes}</span>
+        </div>
+      );
+    }
+
+    if (!linea.trim()) return <div key={i} className="h-2" />;
+
+    return <div key={i} className="my-0.5">{partes}</div>;
+  });
+}
+
+// ─── Parser de secciones — soporta formato FREE y PRO ──────────
 function parsearSecciones(texto: string): Section[] {
+  // Normaliza: saca ** alrededor de títulos para que los regex funcionen
+  const normalizado = texto.replace(/\*\*([A-ZÁÉÍÓÚÑ\s]+)\*\*/g, (_, titulo) => titulo.trim());
+
   const secciones: Section[] = [];
 
   const PATRONES = [
@@ -36,7 +79,7 @@ function parsearSecciones(texto: string): Section[] {
   ];
 
   for (const patron of PATRONES) {
-    const match = texto.match(patron.regex);
+    const match = normalizado.match(patron.regex);
     if (!match) continue;
 
     if (patron.key === "inicio") {
@@ -70,9 +113,7 @@ function parsearSecciones(texto: string): Section[] {
     }
   }
 
-  // Fallback — si el parser no encontró secciones mostramos el texto completo
   if (secciones.length === 0) {
-    // Intentamos limpiar el encabezado de datos generales
     const sinEncabezado = texto
       .replace(/PLANIFICACIÓN DE CLASE.*?\n━+\n/s, "")
       .replace(/DATOS GENERALES[\s\S]*?(?=\nOBJETIVO)/i, "")
@@ -90,15 +131,15 @@ const SECCION_CONFIG: Record<string, {
   bg: string;
   border: string;
 }> = {
-  objetivo:   { icon: <Target className="w-4 h-4" />,      color: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-100" },
-  contenidos: { icon: <FileText className="w-4 h-4" />,    color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-100" },
-  inicio:     { icon: <Sparkles className="w-4 h-4" />,    color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-100" },
+  objetivo:   { icon: <Target className="w-4 h-4" />,       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-100" },
+  contenidos: { icon: <FileText className="w-4 h-4" />,     color: "text-violet-700",  bg: "bg-violet-50",  border: "border-violet-100" },
+  inicio:     { icon: <Sparkles className="w-4 h-4" />,     color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-100" },
   desarrollo: { icon: <FlaskConical className="w-4 h-4" />, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100" },
-  cierre:     { icon: <ChevronRight className="w-4 h-4" />, color: "text-orange-700", bg: "bg-orange-50", border: "border-orange-100" },
-  recursos:   { icon: <Package className="w-4 h-4" />,     color: "text-slate-700",  bg: "bg-slate-50",  border: "border-slate-100" },
-  evaluacion: { icon: <Star className="w-4 h-4" />,        color: "text-rose-700",   bg: "bg-rose-50",   border: "border-rose-100" },
-  tips:       { icon: <Lightbulb className="w-4 h-4" />,   color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200" },
-  raw:        { icon: <FileText className="w-4 h-4" />,     color: "text-ink/70",     bg: "bg-cream-soft", border: "border-cream" },
+  cierre:     { icon: <ChevronRight className="w-4 h-4" />, color: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-100" },
+  recursos:   { icon: <Package className="w-4 h-4" />,      color: "text-slate-700",   bg: "bg-slate-50",   border: "border-slate-100" },
+  evaluacion: { icon: <Star className="w-4 h-4" />,         color: "text-rose-700",    bg: "bg-rose-50",    border: "border-rose-100" },
+  tips:       { icon: <Lightbulb className="w-4 h-4" />,    color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200" },
+  raw:        { icon: <FileText className="w-4 h-4" />,      color: "text-ink/70",      bg: "bg-cream-soft", border: "border-cream" },
 };
 
 // ─── Componente principal ───────────────────────────────────────
@@ -197,8 +238,9 @@ const SeccionCard = ({ seccion }: { seccion: Section }) => {
           )}
         </div>
       </div>
-      <div className="text-ink/80 text-sm leading-relaxed whitespace-pre-wrap">
-        {seccion.content}
+      {/* Contenido con markdown renderizado */}
+      <div className="text-ink/80 text-sm leading-relaxed">
+        {renderMarkdown(seccion.content)}
       </div>
     </div>
   );
