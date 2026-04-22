@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { useUser, useClerk, SignInButton } from "@clerk/clerk-react";
 import { ArrowDown, Sparkles, Crown, CheckCircle2, Users, Star, Clock3 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { OhanaLogo } from "@/components/OhanaLogo";
@@ -27,32 +28,46 @@ const Index = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState<string | undefined>();
-  const [isPro, setIsPro] = useState(false);
+  // ─── Auth real con Clerk ─────────────────────────────────────
+  const { isSignedIn, user } = useUser();
+  const { openSignIn } = useClerk();
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    setUserName("Docente");
-    toast.success("¡Bienvenida a Ohana!", {
-      description: "Ya podés generar tu planificación gratuita del día.",
+  // ─── Plan del usuario ────────────────────────────────────────
+  // Lee el plan desde los publicMetadata de Clerk
+  // Para marcar un usuario como Pro: en Clerk Dashboard → Users → Edit metadata
+  // { "plan": "pro" }
+  const isPro = (user?.publicMetadata?.plan as string) === "pro";
+
+  // Nombre para mostrar en Navbar
+  const userName = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0];
+
+  const handleLoginRequired = () => {
+    openSignIn({
+      afterSignInUrl: window.location.href,
+      afterSignUpUrl: window.location.href,
     });
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserName(undefined);
-    setResult({ status: "idle" });
-  };
+  // ─── Toggle DEV solo en desarrollo ──────────────────────────
+  const [devPro, setDevPro] = useState(false);
+  const planEfectivo = import.meta.env.DEV ? devPro : isPro;
 
+  // ─── Generación ──────────────────────────────────────────────
   const [result, setResult] = useState<ResultState>({ status: "idle" });
 
   const handleGenerate = async (data: PlanFormData) => {
+    // Si no está logueado, abrimos modal de Clerk
+    if (!isSignedIn) {
+      handleLoginRequired();
+      return;
+    }
+
     setResult({ status: "loading" });
+
     try {
       const plan = await generarPlanificacion(
         {
-          docente: data.docente,
+          docente: data.docente || userName || "Docente",
           institucion: data.institucion,
           grado: data.grado,
           materia: data.materia,
@@ -62,12 +77,24 @@ const Index = () => {
           objetivo: data.objetivo,
           contexto: data.contexto,
         },
-        isPro
+        planEfectivo,
+        user?.id  // userId para control de cuota en n8n
       );
+
       setResult({ status: "ready", content: plan.content, meta: data, tipo: plan.tipo });
     } catch (err) {
       const mensaje = err instanceof Error ? err.message : "Error desconocido";
-      toast.error("No pudimos generar tu planificación", { description: mensaje });
+
+      // Si n8n devuelve error de cuota
+      if (mensaje.includes("cuota") || mensaje.includes("limite")) {
+        toast.error("Usaste tu planificación gratuita de hoy", {
+          description: "Volvé mañana o sumate a Ohana Pro para generar sin límites.",
+          duration: 6000,
+        });
+      } else {
+        toast.error("No pudimos generar tu planificación", { description: mensaje });
+      }
+
       setResult({ status: "idle" });
     }
   };
@@ -82,7 +109,16 @@ const Index = () => {
         <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-cream/25 blur-[120px] pointer-events-none" />
         <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-coral/12 blur-[140px] pointer-events-none" />
 
-        <Navbar isLoggedIn={isLoggedIn} userName={userName} onLogin={handleLogin} onLogout={handleLogout} />
+        {/* Navbar conectado a Clerk */}
+        <Navbar
+          isLoggedIn={isSignedIn ?? false}
+          userName={userName}
+          onLogin={handleLoginRequired}
+          onLogout={() => {
+            useClerk().signOut();
+            setResult({ status: "idle" });
+          }}
+        />
 
         <div className="container relative pt-10 pb-20 sm:pb-28">
           <OhanaLogo className="mb-10" />
@@ -101,15 +137,27 @@ const Index = () => {
           {!esResultado && (
             <>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-                <button
-                  onClick={scrollToForm}
-                  className="group flex items-center gap-2 bg-coral text-cream font-semibold px-8 py-3.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-base"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Generar planificación gratis
-                  <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                </button>
-                <span className="text-cream/50 text-sm">Sin registrarte · Sin tarjeta</span>
+                {isSignedIn ? (
+                  <button
+                    onClick={scrollToForm}
+                    className="group flex items-center gap-2 bg-coral text-cream font-semibold px-8 py-3.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-base"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Generar planificación
+                    <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                  </button>
+                ) : (
+                  <SignInButton mode="modal" afterSignInUrl={window.location.href} afterSignUpUrl={window.location.href}>
+                    <button className="group flex items-center gap-2 bg-coral text-cream font-semibold px-8 py-3.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-base">
+                      <Sparkles className="w-4 h-4" />
+                      Generar planificación gratis
+                      <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                    </button>
+                  </SignInButton>
+                )}
+                <span className="text-cream/50 text-sm">
+                  {isSignedIn ? `Hola, ${userName} 👋` : "1 clic con Google · Sin tarjeta"}
+                </span>
               </div>
 
               <div className="flex items-center justify-center gap-6 sm:gap-10 mb-14 animate-fade-up" style={{ animationDelay: "0.18s" }}>
@@ -126,17 +174,19 @@ const Index = () => {
             </>
           )}
 
+          {/* Toggle DEV */}
           {import.meta.env.DEV && (
             <div className="flex justify-center mb-4">
               <button
-                onClick={() => setIsPro((p) => !p)}
-                className={`text-xs px-4 py-1.5 rounded-full border transition-all ${isPro ? "bg-amber-300/20 border-amber-300/40 text-amber-300" : "bg-cream/10 border-cream/20 text-cream/60"}`}
+                onClick={() => setDevPro((p) => !p)}
+                className={`text-xs px-4 py-1.5 rounded-full border transition-all ${devPro ? "bg-amber-300/20 border-amber-300/40 text-amber-300" : "bg-cream/10 border-cream/20 text-cream/60"}`}
               >
-                {isPro ? "✦ Modo PRO activo" : "Modo FREE activo"} — clic para cambiar
+                {devPro ? "✦ Modo PRO activo" : "Modo FREE activo"} — clic para cambiar
               </button>
             </div>
           )}
 
+          {/* Formulario / Skeleton / Resultado */}
           <div ref={formRef} className="px-2 scroll-mt-8">
             {result.status === "loading" ? (
               <PlanificationSkeleton />
@@ -154,7 +204,12 @@ const Index = () => {
               </div>
             ) : (
               <>
-                <PlanForm isLoggedIn={isLoggedIn} isPro={isPro} onLoginRequired={handleLogin} onSubmit={handleGenerate} />
+                <PlanForm
+                  isLoggedIn={isSignedIn ?? false}
+                  isPro={planEfectivo}
+                  onLoginRequired={handleLoginRequired}
+                  onSubmit={handleGenerate}
+                />
                 <FreePreviewExample />
               </>
             )}
@@ -172,16 +227,13 @@ const Index = () => {
       {/* ═══ FREE vs PRO ════════════════════════════════════════ */}
       {!esResultado && <ComparativaFreePro onScrollToForm={scrollToForm} />}
 
-      {/* ═══ PLANES ═════════════════════════════════════════════ */}
       <ProPlans />
-
-      {/* ═══ FOOTER ═════════════════════════════════════════════ */}
       <PartnersBar />
     </main>
   );
 };
 
-// ─── Tabla comparativa FREE vs PRO ───────────────────────────────
+// ─── Tabla FREE vs PRO ───────────────────────────────────────────
 const FILAS = [
   { label: "Planificación completa (inicio, desarrollo, cierre)", free: true, pro: true },
   { label: "Objetivo y contenidos didácticos", free: true, pro: true },

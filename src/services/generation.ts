@@ -1,19 +1,6 @@
-// ─────────────────────────────────────────────────────────────
-// Ohana — Servicio de Generación de Planificaciones
-//
-// El frontend solo manda los datos al webhook de n8n.
-// Todo lo demás vive en n8n:
-//   - Construcción del prompt FREE o PRO
-//   - Llamada a Groq (o DeepSeek cuando corresponda)
-//   - Control de cuota diaria
-//   - Lógica de negocio
-//
-// Para configurar: agregá VITE_N8N_WEBHOOK_URL en tu .env
-// ─────────────────────────────────────────────────────────────
+const WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL;
 
-const WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL || "";
-
-export interface PlanInput {
+export interface GeneracionParams {
   docente: string;
   institucion: string;
   grado: string;
@@ -22,61 +9,46 @@ export interface PlanInput {
   duracion: string;
   tema: string;
   objetivo: string;
-  contexto?: string; // Solo PRO — n8n decide cómo usarlo
+  contexto?: string;
 }
 
-export type Plan = {
+export interface GeneracionResult {
   content: string;
   tipo: "free" | "pro";
-};
+}
 
-// ─── Llamada al webhook de n8n ─────────────────────────────────
 export async function generarPlanificacion(
-  data: PlanInput,
-  isPro: boolean
-): Promise<Plan> {
-  if (!WEBHOOK_URL) {
-    throw new Error(
-      "Webhook no configurado. Agregá VITE_N8N_WEBHOOK_URL en tu .env"
-    );
-  }
+  params: GeneracionParams,
+  isPro: boolean,
+  userId?: string          // ← nuevo: se manda a n8n para control de cuota
+): Promise<GeneracionResult> {
+  if (!WEBHOOK_URL) throw new Error("Webhook de n8n no configurado.");
 
   const response = await fetch(WEBHOOK_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      // Datos del formulario
-      ...data,
-      // Tipo de plan — n8n usa esto para elegir prompt y modelo
+      ...params,
       tipo: isPro ? "pro" : "free",
+      userId: userId ?? "anonimo",   // n8n usará esto para el rate limit
     }),
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error?.message || `Error del servidor (${response.status}). Intentá de nuevo.`
-    );
+    const errorText = await response.text().catch(() => "");
+    // n8n puede devolver mensaje de cuota agotada
+    if (response.status === 429 || errorText.toLowerCase().includes("cuota")) {
+      throw new Error("cuota_agotada");
+    }
+    throw new Error(`Error ${response.status}: ${errorText || response.statusText}`);
   }
 
- const result = await response.json();
+  const result = await response.json();
+  const n8nData = Array.isArray(result) ? result[0] : result;
+  const raw = n8nData?.content ?? n8nData?.text ?? "";
+  const content = raw.startsWith("=") ? raw.slice(1) : raw;
 
-// n8n devuelve array — tomamos el primer elemento
-const n8nData = Array.isArray(result) ? result[0] : result;
+  if (!content) throw new Error("La respuesta llegó vacía. Intentá de nuevo.");
 
-if (!n8nData?.content) {
-  throw new Error("No se recibió la planificación. Intentá de nuevo.");
-}
-
-// Limpiamos el "=" que agrega n8n en algunos casos
-const content = n8nData.content.startsWith("=")
-  ? n8nData.content.slice(1)
-  : n8nData.content;
-
-return {
-  content,
-  tipo: isPro ? "pro" : "free",
-};
+  return { content, tipo: isPro ? "pro" : "free" };
 }
