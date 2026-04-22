@@ -1,14 +1,23 @@
-import { Sparkles, BookOpen, Target, GraduationCap, Crown, Clock, Lightbulb, ChevronRight, FileText, FlaskConical, Package, Star } from "lucide-react";
+import { useState } from "react";
+import {
+  Sparkles, BookOpen, Target, GraduationCap, Crown, Clock,
+  Lightbulb, ChevronRight, FileText, FlaskConical, Package, Star,
+  Download, FileEdit,
+} from "lucide-react";
+import { descargarPlanificacionPDF } from "@/services/pdfGenerator";
+import { descargarPlanificacionDOCX } from "@/services/docxGenerator";
 
 interface PlanificationResultProps {
   content: string;
   meta: {
     docente: string;
+    institucion: string;
     materia: string;
     grado: string;
     tema: string;
     objetivo: string;
     duracion: string;
+    fecha: string;
   };
   tipo: "free" | "pro";
 }
@@ -20,51 +29,40 @@ interface Section {
   tiempo?: string;
 }
 
-// ─── Limpia markers de markdown de un título ────────────────────
-function limpiarTitulo(txt: string): string {
-  return txt.replace(/\*\*/g, "").replace(/\*/g, "").trim();
-}
-
 // ─── Renderer de markdown simple ────────────────────────────────
-// Convierte **negrita**, *cursiva*, listas y saltos en JSX
 function renderMarkdown(texto: string): React.ReactNode {
   const lineas = texto.split("\n");
-
   return lineas.map((linea, i) => {
     const esLista = /^[-*]\s/.test(linea);
     const esNumerada = /^\d+\.\s/.test(linea);
     const contenido = linea.replace(/^[-*]\s/, "").replace(/^\d+\.\s/, "");
 
     const partes = contenido.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((parte, j) => {
-      if (/^\*\*[^*]+\*\*$/.test(parte)) {
+      if (/^\*\*[^*]+\*\*$/.test(parte))
         return <strong key={j} className="font-semibold text-ink/90">{parte.slice(2, -2)}</strong>;
-      }
-      if (/^\*[^*]+\*$/.test(parte)) {
+      if (/^\*[^*]+\*$/.test(parte))
         return <em key={j} className="italic">{parte.slice(1, -1)}</em>;
-      }
       return parte;
     });
 
     if (esLista || esNumerada) {
       return (
         <div key={i} className="flex gap-2 my-0.5">
-          <span className="text-ink/40 shrink-0 mt-0.5">{esNumerada ? `${linea.match(/^\d+/)?.[0]}.` : "•"}</span>
+          <span className="text-ink/40 shrink-0 mt-0.5">
+            {esNumerada ? `${linea.match(/^\d+/)?.[0]}.` : "•"}
+          </span>
           <span>{partes}</span>
         </div>
       );
     }
-
     if (!linea.trim()) return <div key={i} className="h-2" />;
-
     return <div key={i} className="my-0.5">{partes}</div>;
   });
 }
 
-// ─── Parser de secciones — soporta formato FREE y PRO ──────────
+// ─── Parser de secciones ────────────────────────────────────────
 function parsearSecciones(texto: string): Section[] {
-  // Normaliza: saca ** alrededor de títulos para que los regex funcionen
   const normalizado = texto.replace(/\*\*([A-ZÁÉÍÓÚÑ\s]+)\*\*/g, (_, titulo) => titulo.trim());
-
   const secciones: Section[] = [];
 
   const PATRONES = [
@@ -99,17 +97,11 @@ function parsearSecciones(texto: string): Section[] {
       });
     } else {
       const titulos: Record<string, string> = {
-        objetivo:   "Objetivo",
-        contenidos: "Contenidos",
-        recursos:   "Recursos",
-        evaluacion: "Evaluación",
-        tips:       "Tips para el docente",
+        objetivo: "Objetivo", contenidos: "Contenidos",
+        recursos: "Recursos", evaluacion: "Evaluación",
+        tips: "Tips para el docente",
       };
-      secciones.push({
-        key: patron.key,
-        title: titulos[patron.key],
-        content: (match[1] || "").trim(),
-      });
+      secciones.push({ key: patron.key, title: titulos[patron.key], content: (match[1] || "").trim() });
     }
   }
 
@@ -125,12 +117,7 @@ function parsearSecciones(texto: string): Section[] {
 }
 
 // ─── Config visual por sección ──────────────────────────────────
-const SECCION_CONFIG: Record<string, {
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  border: string;
-}> = {
+const SECCION_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; border: string }> = {
   objetivo:   { icon: <Target className="w-4 h-4" />,       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-100" },
   contenidos: { icon: <FileText className="w-4 h-4" />,     color: "text-violet-700",  bg: "bg-violet-50",  border: "border-violet-100" },
   inicio:     { icon: <Sparkles className="w-4 h-4" />,     color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-100" },
@@ -145,6 +132,15 @@ const SECCION_CONFIG: Record<string, {
 // ─── Componente principal ───────────────────────────────────────
 export const PlanificationResult = ({ content, meta, tipo }: PlanificationResultProps) => {
   const secciones = parsearSecciones(content);
+  const [descargandoDocx, setDescargandoDocx] = useState(false);
+
+  const handlePDF = () => descargarPlanificacionPDF(content, meta, tipo);
+
+  const handleDOCX = async () => {
+    setDescargandoDocx(true);
+    await descargarPlanificacionDOCX(content, meta, tipo);
+    setDescargandoDocx(false);
+  };
 
   return (
     <article className="w-full max-w-2xl mx-auto animate-fade-up">
@@ -193,7 +189,36 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
 
       {/* Footer */}
       <div className="bg-cream rounded-b-3xl border border-t-0 border-cream-soft px-8 py-6 shadow-card-pro">
-        {tipo === "free" ? (
+        {tipo === "pro" ? (
+          <div className="space-y-3">
+            <p className="font-serif-elegant italic text-ink/40 text-xs text-center mb-1">
+              Descargá en el formato que necesites
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* PDF */}
+              <button
+                onClick={handlePDF}
+                className="flex-1 flex items-center justify-center gap-2 bg-coral text-cream font-semibold px-5 py-2.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Descargar PDF
+              </button>
+
+              {/* Word */}
+              <button
+                onClick={handleDOCX}
+                disabled={descargandoDocx}
+                className="flex-1 flex items-center justify-center gap-2 bg-cream border border-ink/15 text-ink font-semibold px-5 py-2.5 rounded-full hover:bg-cream-soft hover:-translate-y-0.5 transition-all duration-200 text-sm disabled:opacity-50"
+              >
+                <FileEdit className="w-4 h-4" />
+                {descargandoDocx ? "Generando..." : "Editar en Word"}
+              </button>
+            </div>
+            <p className="text-ink/30 text-[10px] text-center">
+              El Word es 100% editable · Compatible con Google Docs
+            </p>
+          </div>
+        ) : (
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
             <Crown className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
@@ -205,10 +230,6 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
               </p>
             </div>
           </div>
-        ) : (
-          <p className="text-center font-serif-elegant italic text-ink/40 text-sm">
-            Generado por Ohana · Versión Pro
-          </p>
         )}
       </div>
 
@@ -228,9 +249,7 @@ const SeccionCard = ({ seccion }: { seccion: Section }) => {
           {config.icon}
         </span>
         <div className="flex items-center gap-2">
-          <h4 className={`text-sm font-semibold ${config.color}`}>
-            {seccion.title}
-          </h4>
+          <h4 className={`text-sm font-semibold ${config.color}`}>{seccion.title}</h4>
           {seccion.tiempo && (
             <span className={`text-[10px] ${config.color} opacity-70 font-medium bg-white/60 px-2 py-0.5 rounded-full border ${config.border}`}>
               {seccion.tiempo}
@@ -238,7 +257,6 @@ const SeccionCard = ({ seccion }: { seccion: Section }) => {
           )}
         </div>
       </div>
-      {/* Contenido con markdown renderizado */}
       <div className="text-ink/80 text-sm leading-relaxed">
         {renderMarkdown(seccion.content)}
       </div>
@@ -247,13 +265,7 @@ const SeccionCard = ({ seccion }: { seccion: Section }) => {
 };
 
 // ─── Pill de metadato ───────────────────────────────────────────
-const MetaPill = ({
-  icon, label, value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) => (
+const MetaPill = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
   <div className="bg-brand-soft/40 rounded-xl px-3 py-2 border border-brand/20">
     <div className="flex items-center gap-1 text-ink/50 text-[10px] uppercase tracking-wider font-semibold mb-0.5">
       {icon} {label}
