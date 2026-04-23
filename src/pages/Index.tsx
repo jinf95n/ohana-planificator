@@ -9,7 +9,6 @@ import { PlanificationSkeleton } from "@/components/PlanificationSkeleton";
 import { PlanificationResult } from "@/components/PlanificationResult";
 import { ProPlans } from "@/components/ProPlans";
 import { PartnersBar } from "@/components/PartnersBar";
-import { FreePreviewExample } from "@/components/FreePreviewExample";
 import { HowItWorks } from "@/components/HowItWorks";
 import { generarPlanificacion } from "@/services/generation";
 
@@ -210,7 +209,6 @@ const Index = () => {
                   onLoginRequired={handleLoginRequired}
                   onSubmit={handleGenerate}
                 />
-                <FreePreviewExample />
               </>
             )}
           </div>
