@@ -1,3 +1,11 @@
+// ─── Agregar en App.tsx ───────────────────────────────────────────
+// 1. Importar el componente:
+import { Admin } from "./pages/Admin.tsx";
+
+// 2. Agregar la ruta dentro de <Routes>:
+// <Route path="/admin" element={<Admin />} />
+
+// ─── App.tsx completo actualizado ─────────────────────────────────
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -16,6 +24,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
