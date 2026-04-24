@@ -109,15 +109,7 @@ const Index = () => {
         <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-coral/12 blur-[140px] pointer-events-none" />
 
         {/* Navbar conectado a Clerk */}
-        <Navbar
-          isLoggedIn={isSignedIn ?? false}
-          userName={userName}
-          onLogin={handleLoginRequired}
-          onLogout={() => {
-            signOut();
-            setResult({ status: "idle" });
-          }}
-        />
+        <Navbar onLogin={() => openSignIn()} />
 
         <div className="container relative pt-10 pb-20 sm:pb-28">
           <OhanaLogo className="mb-10" />
