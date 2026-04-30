@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { useUser, useClerk, SignInButton } from "@clerk/clerk-react";
-import { ArrowDown, Sparkles, Crown, CheckCircle2, Users, Star, Clock3 } from "lucide-react";
+import { ArrowDown, Sparkles, Crown, CheckCircle2, Users, Star, Clock3, Zap } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { OhanaLogo } from "@/components/OhanaLogo";
 import { PlanForm, PlanFormData } from "@/components/PlanForm";
@@ -17,6 +17,13 @@ type ResultState =
   | { status: "loading" }
   | { status: "ready"; content: string; meta: PlanFormData; tipo: "free" | "pro" };
 
+// Estado de créditos que llega desde n8n tras cada generación
+interface CreditState {
+  creditosRestantes: number | null;
+  creditosBienvenida: number | null;
+  plan: string;
+}
+
 const STATS = [
   { icon: <Users className="w-4 h-4" />, value: "400+", label: "docentes" },
   { icon: <Star className="w-4 h-4" />, value: "4.9", label: "valoración" },
@@ -27,17 +34,12 @@ const Index = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  // ─── Auth real con Clerk ─────────────────────────────────────
   const { isSignedIn, user } = useUser();
   const { openSignIn, signOut } = useClerk();
 
-  // ─── Plan del usuario ────────────────────────────────────────
-  // Lee el plan desde los publicMetadata de Clerk
-  // Para marcar un usuario como Pro: en Clerk Dashboard → Users → Edit metadata
-  // { "plan": "pro" }
-  const isPro = (user?.publicMetadata?.plan as string) === "pro";
+  const isPro = (user?.publicMetadata?.plan as string) === "pro"
+    || (user?.publicMetadata?.plan as string) === "starter";
 
-  // Nombre para mostrar en Navbar
   const userName = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0];
 
   const handleLoginRequired = () => {
@@ -47,15 +49,15 @@ const Index = () => {
     });
   };
 
-  // ─── Toggle DEV solo en desarrollo ──────────────────────────
   const [devPro, setDevPro] = useState(false);
   const planEfectivo = import.meta.env.DEV ? devPro : isPro;
 
-  // ─── Generación ──────────────────────────────────────────────
   const [result, setResult] = useState<ResultState>({ status: "idle" });
 
+  // ─── Créditos ────────────────────────────────────────────────
+  const [credits, setCredits] = useState<CreditState | null>(null);
+
   const handleGenerate = async (data: PlanFormData) => {
-    // Si no está logueado, abrimos modal de Clerk
     if (!isSignedIn) {
       handleLoginRequired();
       return;
@@ -77,14 +79,20 @@ const Index = () => {
           contexto: data.contexto,
         },
         planEfectivo,
-        user?.id  // userId para control de cuota en n8n
+        user?.id
       );
+
+      // Guardamos los créditos que devolvió n8n
+      setCredits({
+        creditosRestantes: plan.creditosRestantes,
+        creditosBienvenida: plan.creditosBienvenida,
+        plan: plan.plan,
+      });
 
       setResult({ status: "ready", content: plan.content, meta: data, tipo: plan.tipo });
     } catch (err) {
       const mensaje = err instanceof Error ? err.message : "Error desconocido";
 
-      // Si n8n devuelve error de cuota
       if (mensaje.includes("cuota") || mensaje.includes("limite")) {
         toast.error("Usaste tu planificación gratuita de hoy", {
           description: "Volvé mañana o sumate a Ohana Pro para generar sin límites.",
@@ -108,7 +116,6 @@ const Index = () => {
         <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-cream/25 blur-[120px] pointer-events-none" />
         <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-coral/12 blur-[140px] pointer-events-none" />
 
-        {/* Navbar conectado a Clerk */}
         <Navbar onLogin={() => openSignIn()} />
 
         <div className="container relative pt-10 pb-20 sm:pb-28">
@@ -177,6 +184,11 @@ const Index = () => {
             </div>
           )}
 
+          {/* ─── Contador de créditos ─────────────────────────── */}
+          {isSignedIn && credits && (
+            <CreditosChip credits={credits} />
+          )}
+
           {/* Formulario / Skeleton / Resultado */}
           <div ref={formRef} className="px-2 scroll-mt-8">
             {result.status === "loading" ? (
@@ -194,14 +206,12 @@ const Index = () => {
                 </div>
               </div>
             ) : (
-              <>
-                <PlanForm
-                  isLoggedIn={isSignedIn ?? false}
-                  isPro={planEfectivo}
-                  onLoginRequired={handleLoginRequired}
-                  onSubmit={handleGenerate}
-                />
-              </>
+              <PlanForm
+                isLoggedIn={isSignedIn ?? false}
+                isPro={planEfectivo}
+                onLoginRequired={handleLoginRequired}
+                onSubmit={handleGenerate}
+              />
             )}
           </div>
         </div>
@@ -214,13 +224,56 @@ const Index = () => {
         </section>
       )}
 
-      {/* ═══ FREE vs PRO ════════════════════════════════════════ */}
       {!esResultado && <ComparativaFreePro onScrollToForm={scrollToForm} />}
 
       <ProPlans />
       <PartnersBar />
     </main>
   );
+};
+
+// ─── Chip contador de créditos ───────────────────────────────────
+const CreditosChip = ({ credits }: { credits: CreditState }) => {
+  const { creditosRestantes, creditosBienvenida, plan } = credits;
+
+  // Créditos de bienvenida activos (free con bienvenida > 0)
+  if (creditosBienvenida !== null && creditosBienvenida >= 0 && plan === "free") {
+    return (
+      <div className="flex justify-center mb-4">
+        <div className="flex items-center gap-2 bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold px-4 py-2 rounded-full">
+          <Zap className="w-3.5 h-3.5" />
+          {creditosBienvenida === 0
+            ? "Usaste tus 5 planificaciones de bienvenida — quedás en plan Free (1/día)"
+            : `Te quedan ${creditosBienvenida} planificación${creditosBienvenida !== 1 ? "es" : ""} de bienvenida`}
+        </div>
+      </div>
+    );
+  }
+
+  // Plan pago — cuota diaria
+  if (creditosRestantes !== null) {
+    const esPro = plan === "pro" || plan === "starter";
+    const limite = plan === "pro" ? 10 : plan === "starter" ? 5 : 1;
+
+    return (
+      <div className="flex justify-center mb-4">
+        <div className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full border ${
+          creditosRestantes === 0
+            ? "bg-red-500/15 border-red-500/30 text-red-300"
+            : esPro
+            ? "bg-cream/10 border-cream/15 text-cream/60"
+            : "bg-cream/10 border-cream/15 text-cream/60"
+        }`}>
+          {esPro ? <Crown className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+          {creditosRestantes === 0
+            ? "Llegaste al límite de hoy — volvé mañana"
+            : `Te quedan ${creditosRestantes} de ${limite} planificaciones de hoy`}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 // ─── Tabla FREE vs PRO ───────────────────────────────────────────
