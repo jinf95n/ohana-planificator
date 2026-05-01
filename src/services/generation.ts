@@ -15,15 +15,16 @@ export interface GeneracionParams {
 export interface GeneracionResult {
   content: string;
   tipo: "free" | "pro";
-  creditosRestantes: number | null;   // cuántas le quedan hoy (plan diario)
-  creditosBienvenida: number | null;  // cuántos créditos de bienvenida le quedan (solo free)
-  plan: string;                       // "free" | "starter" | "pro" según Clerk
+  creditosRestantes: number | null; // cuántas le quedan hoy (plan diario)
+  creditosBienvenida: number | null; // cuántos créditos de bienvenida le quedan (solo free)
+  plan: string; // "free" | "starter" | "pro" según Clerk
+  planId: string | null; // ID del plan generado
 }
 
 export async function generarPlanificacion(
   params: GeneracionParams,
   isPro: boolean,
-  userId?: string
+  userId?: string,
 ): Promise<GeneracionResult> {
   if (!WEBHOOK_URL) throw new Error("Webhook de n8n no configurado.");
 
@@ -42,7 +43,9 @@ export async function generarPlanificacion(
     if (response.status === 429 || errorText.toLowerCase().includes("cuota")) {
       throw new Error("cuota_agotada");
     }
-    throw new Error(`Error ${response.status}: ${errorText || response.statusText}`);
+    throw new Error(
+      `Error ${response.status}: ${errorText || response.statusText}`,
+    );
   }
 
   const result = await response.json();
@@ -53,15 +56,20 @@ export async function generarPlanificacion(
   if (!content) throw new Error("La respuesta llegó vacía. Intentá de nuevo.");
 
   // Créditos — n8n los manda en la misma respuesta
-  const creditosRestantes = n8nData?.creditosRestantes != null
-    ? parseInt(String(n8nData.creditosRestantes))
-    : null;
+  const creditosRestantes =
+    n8nData?.creditosRestantes != null
+      ? parseInt(String(n8nData.creditosRestantes))
+      : null;
 
-  const creditosBienvenida = n8nData?.creditosBienvenida != null
-    ? parseInt(String(n8nData.creditosBienvenida))
-    : null;
+  const creditosBienvenida =
+    n8nData?.creditosBienvenida != null
+      ? parseInt(String(n8nData.creditosBienvenida))
+      : null;
 
   const plan = n8nData?.plan ?? (isPro ? "pro" : "free");
+
+  console.log("[Ohana] n8nData completo:", n8nData);
+  console.log("[Ohana] planId:", n8nData?.planId);
 
   return {
     content,
@@ -69,5 +77,6 @@ export async function generarPlanificacion(
     creditosRestantes,
     creditosBienvenida,
     plan,
+    planId: n8nData?.planId ?? null,
   };
 }
