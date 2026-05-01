@@ -21,7 +21,7 @@ const HERRAMIENTAS_PRO = [
     title: "Exportación con Formato Oficial",
     desc: "Documentos institucionales con tu logo, encabezados y firmas listos para presentar a dirección.",
     badge: "PDF & Word",
-    disponible: true,
+    disponible: false,
   },
   {
     icon: Drama,

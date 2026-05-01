@@ -1,27 +1,15 @@
-const LOGO_HEIGHT = "h-7";
+const LOGO_HEIGHT = "h-9";
 
 const McmDigitalLogo = () => (
-  <svg viewBox="0 0 180 28" className={`${LOGO_HEIGHT} w-auto`} aria-label="MCM Digital" preserveAspectRatio="xMidYMid meet">
-    <text x="0" y="20" fill="currentColor" fontFamily="'Inter', system-ui, sans-serif" fontSize="18" fontWeight="700" letterSpacing="0.5">MCM</text>
-    <text x="56" y="20" fill="currentColor" opacity="0.55" fontFamily="'Inter', system-ui, sans-serif" fontSize="14" fontWeight="300" letterSpacing="3">DIGITAL</text>
-  </svg>
+  <img src="/logos/mcm-digital.png" alt="MCM Digital" className={`${LOGO_HEIGHT} w-auto object-contain opacity-50 hover:opacity-80 transition-opacity duration-300`} style={{ filter: "brightness(0) invert(1)" }} />
 );
 
 const ValyLogo = () => (
-  <svg viewBox="0 0 160 28" className={`${LOGO_HEIGHT} w-auto`} aria-label="Valy Agency" preserveAspectRatio="xMidYMid meet">
-    <path d="M2 6 L10 22 L18 6 Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    <text x="24" y="20" fill="currentColor" fontFamily="'Inter', system-ui, sans-serif" fontSize="18" fontWeight="700" letterSpacing="0.5">valy</text>
-    <text x="68" y="20" fill="currentColor" opacity="0.55" fontFamily="'Inter', system-ui, sans-serif" fontSize="14" fontWeight="300" letterSpacing="3">AGENCY</text>
-  </svg>
+  <img src="/logos/valy-agency.png" alt="Valy Agency" className={`${LOGO_HEIGHT} w-auto object-contain opacity-50 hover:opacity-80 transition-opacity duration-300`} style={{ filter: "brightness(0) invert(1)" }} />
 );
 
 const Landing24Logo = () => (
-  <svg viewBox="0 0 190 28" className={`${LOGO_HEIGHT} w-auto`} aria-label="Landing24" preserveAspectRatio="xMidYMid meet">
-    {/* rocket shape */}
-    <path d="M6 20 L10 8 L14 20 M8 16 L12 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <text x="22" y="20" fill="currentColor" fontFamily="'Inter', system-ui, sans-serif" fontSize="17" fontWeight="600" letterSpacing="0.3">Landing</text>
-    <text x="110" y="20" fill="currentColor" opacity="0.7" fontFamily="'Inter', system-ui, sans-serif" fontSize="17" fontWeight="800" letterSpacing="0.3">24</text>
-  </svg>
+  <img src="/logos/landing24.png" alt="Landing24" className={`${LOGO_HEIGHT} w-auto object-contain opacity-50 hover:opacity-80 transition-opacity duration-300`} style={{ filter: "brightness(0) invert(1)" }} />
 );
 
 export const PartnersBar = () => {

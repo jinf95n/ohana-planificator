@@ -21,6 +21,7 @@ import { ProPlans } from "@/components/ProPlans";
 import { PartnersBar } from "@/components/PartnersBar";
 import { HowItWorks } from "@/components/HowItWorks";
 import { generarPlanificacion } from "@/services/generation";
+import { WelcomeSplash, useSplash } from "@/components/WelcomeSplash";
 
 type ResultState =
   | { status: "idle" }
@@ -51,8 +52,10 @@ const Index = () => {
   const scrollToForm = () =>
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn, user , isLoaded} = useUser();
   const { openSignIn } = useClerk();
+
+  const { mostrarSplash, ocultarSplash } = useSplash(isLoaded, isSignedIn);
 
   const isPro =
     (user?.publicMetadata?.plan as string) === "pro" ||
@@ -154,6 +157,8 @@ const Index = () => {
   };
 
   const esResultado = result.status === "ready" || result.status === "loading";
+
+  if (!isLoaded) return null;
 
   return (
     <main className="min-h-screen">
@@ -264,6 +269,11 @@ const Index = () => {
 
             {result.status === "loading" ? (
               <PlanificationSkeleton />
+            ) : mostrarSplash && isSignedIn ? (
+              <WelcomeSplash
+                nombre={userName ?? "docente"}
+                onDone={ocultarSplash}
+              />
             ) : loadingCredits && isSignedIn ? (
               <PlanificationSkeleton />
             ) : result.status === "ready" ? (
