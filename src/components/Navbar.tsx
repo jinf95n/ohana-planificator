@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ChevronDown, Shield, LogOut, Crown } from "lucide-react";
+import { Sparkles, ChevronDown, Shield, LogOut, Crown, User} from "lucide-react";
 
 // ─── Config ────────────────────────────────────────────────────────
 const ADMIN_EMAILS = ["jinf95n@gmail.com"]; // ← tu email
@@ -145,6 +145,15 @@ export const Navbar = ({ onLogin }: NavbarProps) => {
 
                   {/* Opciones */}
                   <div className="py-1.5">
+
+                    {/* Mi cuenta */}
+                    <button
+                      onClick={() => { navigate("/micuenta"); setOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-cream/70 hover:text-cream hover:bg-cream/5 transition-colors"
+                    >
+                      <User className="w-4 h-4" />
+                      Mi cuenta
+                    </button>
 
                     {/* Admin — solo si sos admin */}
                     {isAdmin && (

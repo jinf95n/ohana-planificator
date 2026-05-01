@@ -1,6 +1,6 @@
 // ─── Agregar en App.tsx ───────────────────────────────────────────
 // 1. Importar el componente:
-import { Admin } from "./pages/Admin.tsx";
+import { Admin } from "./pages/Admin";
 
 // 2. Agregar la ruta dentro de <Routes>:
 // <Route path="/admin" element={<Admin />} />
@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import { MiCuenta } from "./pages/MiCuenta";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/micuenta" element={<MiCuenta />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
