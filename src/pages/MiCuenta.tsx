@@ -2,9 +2,17 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import {
-  Crown, Zap, BookOpen, Clock, Calendar,
-  ChevronRight, Lock, Sparkles, ArrowLeft,
-  RefreshCw, GraduationCap
+  Crown,
+  Zap,
+  BookOpen,
+  Clock,
+  Calendar,
+  ChevronRight,
+  Lock,
+  Sparkles,
+  ArrowLeft,
+  RefreshCw,
+  GraduationCap,
 } from "lucide-react";
 
 // ─── Config ───────────────────────────────────────────────────────
@@ -38,15 +46,35 @@ interface Planificacion {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
-const PLAN_CONFIG: Record<string, { label: string; color: string; badge: string; limite: number }> = {
-  free:    { label: "Free",        color: "text-cream/50",  badge: "bg-cream/10 text-cream/50 border-cream/15",         limite: 1  },
-  starter: { label: "Pro Básico",  color: "text-blue-400",  badge: "bg-blue-500/15 text-blue-300 border-blue-500/25",   limite: 5  },
-  pro:     { label: "Pro Starter", color: "text-amber-400", badge: "bg-amber-500/15 text-amber-300 border-amber-500/25", limite: 10 },
+const PLAN_CONFIG: Record<
+  string,
+  { label: string; color: string; badge: string; limite: number }
+> = {
+  free: {
+    label: "Free",
+    color: "text-cream/50",
+    badge: "bg-cream/10 text-cream/50 border-cream/15",
+    limite: 1,
+  },
+  starter: {
+    label: "Pro Básico",
+    color: "text-blue-400",
+    badge: "bg-blue-500/15 text-blue-300 border-blue-500/25",
+    limite: 5,
+  },
+  pro: {
+    label: "Pro Starter",
+    color: "text-amber-400",
+    badge: "bg-amber-500/15 text-amber-300 border-amber-500/25",
+    limite: 10,
+  },
 };
 
 function formatFecha(iso: string) {
   return new Date(iso).toLocaleDateString("es-AR", {
-    day: "2-digit", month: "short", year: "numeric"
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 }
 
@@ -59,54 +87,70 @@ export const MiCuenta = () => {
   const [historial, setHistorial] = useState<Planificacion[]>([]);
   const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [loadingHistorial, setLoadingHistorial] = useState(true);
-  const [planifSeleccionada, setPlanifSeleccionada] = useState<Planificacion | null>(null);
+  const [planifSeleccionada, setPlanifSeleccionada] =
+    useState<Planificacion | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (!isSignedIn) { navigate("/"); return; }
+    if (!isSignedIn) {
+      navigate("/");
+      return;
+    }
     cargarDatos();
   }, [isLoaded]);
 
-  const cargarDatos = async () => {
-    if (!user?.id) return;
-    setLoadingPerfil(true);
-    setLoadingHistorial(true);
+ const cargarDatos = async () => {
+  if (!user?.id) return;
+  setLoadingPerfil(true);
+  setLoadingHistorial(true);
 
-    // Perfil y historial en paralelo
-    Promise.all([
+  try {
+    const [perfilRes, historialRes] = await Promise.all([
       fetch(`${N8N_BASE}/ohana-usuario-perfil`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id }),
-      }).then(r => r.json()),
+      }),
       fetch(`${N8N_BASE}/ohana-usuario-historial`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id }),
-      }).then(r => r.json()),
-    ]).then(([perfilData, historialData]) => {
-      const p = Array.isArray(perfilData) ? perfilData[0] : perfilData;
-      setPerfil(p);
-      setLoadingPerfil(false);
+      }),
+    ]);
 
-      const h = Array.isArray(historialData) ? historialData : [];
-      setHistorial(h);
-      setLoadingHistorial(false);
-    }).catch(() => {
-      setLoadingPerfil(false);
-      setLoadingHistorial(false);
-    });
-  };
+    const perfilData = await perfilRes.json();
+    const p = Array.isArray(perfilData) ? perfilData[0] : perfilData;
+    setPerfil(p);
+    setLoadingPerfil(false);
+
+    let historialData = [];
+    try {
+      const text = await historialRes.text();
+      historialData = text ? JSON.parse(text) : [];
+    } catch {
+      historialData = [];
+    }
+    setHistorial(historialData);
+    setLoadingHistorial(false);
+
+  } catch {
+    setLoadingPerfil(false);
+    setLoadingHistorial(false);
+  }
+};
 
   if (!isLoaded || !isSignedIn) return null;
 
   const planInfo = PLAN_CONFIG[perfil?.plan ?? "free"] ?? PLAN_CONFIG.free;
   const esFree = !perfil?.plan || perfil.plan === "free";
-  const nombreMostrar = perfil?.nombre || user.firstName || user.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "Docente";
+  const nombreMostrar =
+    perfil?.nombre ||
+    user.firstName ||
+    user.emailAddresses?.[0]?.emailAddress?.split("@")[0] ||
+    "Docente";
 
   return (
     <div className="min-h-screen bg-ink text-cream">
-
       {/* Header */}
       <header className="border-b border-ink-border bg-ink/80 backdrop-blur sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -126,23 +170,38 @@ export const MiCuenta = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-
         {/* ── Perfil ──────────────────────────────────────────── */}
         <div className="bg-ink-soft border border-ink-border rounded-2xl p-6">
           <div className="flex items-center gap-4">
             {user.imageUrl ? (
-              <img src={user.imageUrl} alt="" className="w-14 h-14 rounded-full ring-2 ring-coral/30 object-cover" />
+              <img
+                src={user.imageUrl}
+                alt=""
+                className="w-14 h-14 rounded-full ring-2 ring-coral/30 object-cover"
+              />
             ) : (
               <div className="w-14 h-14 rounded-full bg-coral/20 flex items-center justify-center">
-                <span className="text-coral text-xl font-bold">{nombreMostrar[0]}</span>
+                <span className="text-coral text-xl font-bold">
+                  {nombreMostrar[0]}
+                </span>
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-cream font-display text-xl">{nombreMostrar}</h1>
-              <p className="text-cream/40 text-sm truncate">{perfil?.email ?? user.emailAddresses?.[0]?.emailAddress}</p>
+              <h1 className="text-cream font-display text-xl">
+                {nombreMostrar}
+              </h1>
+              <p className="text-cream/40 text-sm truncate">
+                {perfil?.email ?? user.emailAddresses?.[0]?.emailAddress}
+              </p>
               {!loadingPerfil && perfil && (
-                <span className={`inline-flex items-center gap-1.5 mt-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${planInfo.badge}`}>
-                  {perfil.plan === "free" ? <Zap className="w-3 h-3" /> : <Crown className="w-3 h-3" />}
+                <span
+                  className={`inline-flex items-center gap-1.5 mt-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${planInfo.badge}`}
+                >
+                  {perfil.plan === "free" ? (
+                    <Zap className="w-3 h-3" />
+                  ) : (
+                    <Crown className="w-3 h-3" />
+                  )}
                   {planInfo.label}
                 </span>
               )}
@@ -155,7 +214,6 @@ export const MiCuenta = () => {
           <SkeletonCard />
         ) : perfil ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
             {/* Restantes hoy */}
             {perfil.usandoBienvenida ? (
               <CreditCard
@@ -163,7 +221,11 @@ export const MiCuenta = () => {
                 value={perfil.creditosBienvenida ?? 0}
                 total={5}
                 icon={<Zap className="w-4 h-4" />}
-                color={(perfil.creditosBienvenida ?? 0) === 0 ? "text-red-400" : "text-amber-400"}
+                color={
+                  (perfil.creditosBienvenida ?? 0) === 0
+                    ? "text-red-400"
+                    : "text-amber-400"
+                }
               />
             ) : (
               <CreditCard
@@ -171,41 +233,61 @@ export const MiCuenta = () => {
                 value={perfil.creditosRestantesHoy}
                 total={perfil.limite}
                 icon={<Sparkles className="w-4 h-4" />}
-                color={perfil.creditosRestantesHoy === 0 ? "text-red-400" : "text-emerald-400"}
+                color={
+                  perfil.creditosRestantesHoy === 0
+                    ? "text-red-400"
+                    : "text-emerald-400"
+                }
               />
             )}
 
             {/* Total generadas — viene del historial */}
             <div className="bg-ink-soft border border-ink-border rounded-2xl px-5 py-4">
-              <div className="text-coral/70 mb-3"><BookOpen className="w-4 h-4" /></div>
+              <div className="text-coral/70 mb-3">
+                <BookOpen className="w-4 h-4" />
+              </div>
               <p className="text-cream text-2xl font-display">
                 {loadingHistorial ? "—" : historial.length}
               </p>
-              <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">Planificaciones generadas</p>
+              <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">
+                Planificaciones generadas
+              </p>
             </div>
 
             {/* Vencimiento o miembro desde */}
             <div className="bg-ink-soft border border-ink-border rounded-2xl px-5 py-4">
-              <div className="text-cream/40 mb-3"><Calendar className="w-4 h-4" /></div>
+              <div className="text-cream/40 mb-3">
+                <Calendar className="w-4 h-4" />
+              </div>
               {perfil.vencimiento ? (
                 <>
                   <p className="text-cream text-lg font-display leading-tight">
-                    {new Date(perfil.vencimiento).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(perfil.vencimiento).toLocaleDateString("es-AR", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </p>
-                  <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">Vencimiento del plan</p>
+                  <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">
+                    Vencimiento del plan
+                  </p>
                 </>
               ) : (
                 <>
                   <p className="text-cream text-lg font-display leading-tight">
                     {perfil.miembro_desde
-                      ? new Date(perfil.miembro_desde).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
+                      ? new Date(perfil.miembro_desde).toLocaleDateString(
+                          "es-AR",
+                          { day: "2-digit", month: "short", year: "numeric" },
+                        )
                       : "—"}
                   </p>
-                  <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">Miembro desde</p>
+                  <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">
+                    Miembro desde
+                  </p>
                 </>
               )}
             </div>
-
           </div>
         ) : null}
 
@@ -217,7 +299,8 @@ export const MiCuenta = () => {
                 <Crown className="w-4 h-4" /> Pasate a Pro
               </p>
               <p className="text-amber-200/60 text-xs mt-0.5">
-                Hasta 10 planificaciones por día, contexto de aula y descarga en PDF
+                Hasta 10 planificaciones por día, contexto de aula y descarga en
+                PDF
               </p>
             </div>
             <button className="shrink-0 bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold text-xs px-4 py-2 rounded-xl transition-colors">
@@ -229,7 +312,9 @@ export const MiCuenta = () => {
         {/* ── Historial ────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg text-cream">Mis planificaciones</h2>
+            <h2 className="font-display text-lg text-cream">
+              Mis planificaciones
+            </h2>
             <button
               onClick={cargarDatos}
               className="text-cream/30 hover:text-cream/70 transition-colors"
@@ -241,7 +326,10 @@ export const MiCuenta = () => {
           {loadingHistorial ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-ink-soft border border-ink-border rounded-xl h-16 animate-pulse" />
+                <div
+                  key={i}
+                  className="bg-ink-soft border border-ink-border rounded-xl h-16 animate-pulse"
+                />
               ))}
             </div>
           ) : historial.length === 0 ? (
@@ -273,12 +361,17 @@ export const MiCuenta = () => {
         >
           <div
             className="bg-ink-soft border border-ink-border rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-ink-soft border-b border-ink-border px-6 py-4 flex items-center justify-between">
               <div>
-                <p className="text-cream font-semibold">{planifSeleccionada.materia}</p>
-                <p className="text-cream/40 text-xs">{planifSeleccionada.grado} · {formatFecha(planifSeleccionada.created_at)}</p>
+                <p className="text-cream font-semibold">
+                  {planifSeleccionada.materia}
+                </p>
+                <p className="text-cream/40 text-xs">
+                  {planifSeleccionada.grado} ·{" "}
+                  {formatFecha(planifSeleccionada.created_at)}
+                </p>
               </div>
               <button
                 onClick={() => setPlanifSeleccionada(null)}
@@ -301,7 +394,10 @@ export const MiCuenta = () => {
 
 // ─── Fila historial ───────────────────────────────────────────────
 const PlanificacionRow = ({
-  planif, esFree, index, onClick
+  planif,
+  esFree,
+  index,
+  onClick,
 }: {
   planif: Planificacion;
   esFree: boolean;
@@ -325,8 +421,12 @@ const PlanificacionRow = ({
       </div>
 
       {/* Info */}
-      <div className={`flex-1 min-w-0 ${bloqueada ? "blur-[3px] select-none" : ""}`}>
-        <p className="text-cream text-sm font-medium truncate">{planif.tema || planif.materia}</p>
+      <div
+        className={`flex-1 min-w-0 ${bloqueada ? "blur-[3px] select-none" : ""}`}
+      >
+        <p className="text-cream text-sm font-medium truncate">
+          {planif.tema || planif.materia}
+        </p>
         <p className="text-cream/40 text-xs flex items-center gap-2 mt-0.5">
           <span>{planif.materia}</span>
           <span>·</span>
@@ -341,11 +441,13 @@ const PlanificacionRow = ({
 
       {/* Badge tipo */}
       {!bloqueada && (
-        <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border ${
-          planif.tipo === "pro" || planif.tipo === "starter"
-            ? "bg-amber-500/15 text-amber-400 border-amber-500/25"
-            : "bg-cream/10 text-cream/40 border-cream/15"
-        }`}>
+        <span
+          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+            planif.tipo === "pro" || planif.tipo === "starter"
+              ? "bg-amber-500/15 text-amber-400 border-amber-500/25"
+              : "bg-cream/10 text-cream/40 border-cream/15"
+          }`}
+        >
           {planif.tipo === "free" ? "Free" : "Pro"}
         </span>
       )}
@@ -369,7 +471,13 @@ const PlanificacionRow = ({
 };
 
 // ─── Credit card ──────────────────────────────────────────────────
-const CreditCard = ({ label, value, total, icon, color }: {
+const CreditCard = ({
+  label,
+  value,
+  total,
+  icon,
+  color,
+}: {
   label: string;
   value: number;
   total: number;
@@ -382,7 +490,9 @@ const CreditCard = ({ label, value, total, icon, color }: {
       {value}
       <span className="text-cream/20 text-base font-sans ml-1">/ {total}</span>
     </p>
-    <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">{label}</p>
+    <p className="text-cream/40 text-xs font-semibold uppercase tracking-widest mt-0.5">
+      {label}
+    </p>
   </div>
 );
 
@@ -390,7 +500,10 @@ const CreditCard = ({ label, value, total, icon, color }: {
 const SkeletonCard = () => (
   <div className="grid grid-cols-3 gap-4">
     {[...Array(3)].map((_, i) => (
-      <div key={i} className="bg-ink-soft border border-ink-border rounded-2xl h-24 animate-pulse" />
+      <div
+        key={i}
+        className="bg-ink-soft border border-ink-border rounded-2xl h-24 animate-pulse"
+      />
     ))}
   </div>
 );
