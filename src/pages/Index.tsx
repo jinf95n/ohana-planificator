@@ -1,7 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { useUser, useClerk, SignInButton } from "@clerk/clerk-react";
-import { ArrowDown, Sparkles, Crown, CheckCircle2, Users, Star, Clock3, Zap } from "lucide-react";
+import {
+  ArrowDown,
+  Sparkles,
+  Crown,
+  CheckCircle2,
+  Users,
+  Star,
+  Clock3,
+  Zap,
+} from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { OhanaLogo } from "@/components/OhanaLogo";
 import { PlanForm, PlanFormData } from "@/components/PlanForm";
@@ -15,7 +24,12 @@ import { generarPlanificacion } from "@/services/generation";
 type ResultState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "ready"; content: string; meta: PlanFormData; tipo: "free" | "pro" };
+  | {
+      status: "ready";
+      content: string;
+      meta: PlanFormData;
+      tipo: "free" | "pro";
+    };
 
 // Estado de créditos que llega desde n8n tras cada generación
 interface CreditState {
@@ -32,15 +46,18 @@ const STATS = [
 
 const Index = () => {
   const formRef = useRef<HTMLDivElement>(null);
-  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollToForm = () =>
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const { isSignedIn, user } = useUser();
   const { openSignIn, signOut } = useClerk();
 
-  const isPro = (user?.publicMetadata?.plan as string) === "pro"
-    || (user?.publicMetadata?.plan as string) === "starter";
+  const isPro =
+    (user?.publicMetadata?.plan as string) === "pro" ||
+    (user?.publicMetadata?.plan as string) === "starter";
 
-  const userName = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0];
+  const userName =
+    user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0];
 
   const handleLoginRequired = () => {
     openSignIn({
@@ -50,12 +67,38 @@ const Index = () => {
   };
 
   const [devPro, setDevPro] = useState(false);
-  const planEfectivo = import.meta.env.DEV ? devPro : isPro;
 
   const [result, setResult] = useState<ResultState>({ status: "idle" });
 
   // ─── Créditos ────────────────────────────────────────────────
   const [credits, setCredits] = useState<CreditState | null>(null);
+  const [loadingCredits, setLoadingCredits] = useState(true);
+
+  const tieneBienvenida =
+    (credits?.creditosBienvenida ?? 0) > 0 && credits?.plan === "free";
+  const planEfectivo = import.meta.env.DEV ? devPro : isPro || tieneBienvenida;
+
+  // Cargar créditos al entrar si el usuario ya está logueado
+  useEffect(() => {
+    if (!isSignedIn || !user?.id) return;
+    fetch("https://n8n.valy.agency/webhook/ohana-usuario-perfil", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const p = Array.isArray(data) ? data[0] : data;
+        if (!p) return;
+        setCredits({
+          creditosRestantes: p.creditosRestantesHoy ?? null,
+          creditosBienvenida: p.creditosBienvenida ?? null,
+          plan: p.plan ?? "free",
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoadingCredits(false));
+  }, [isSignedIn, user?.id]);
 
   const handleGenerate = async (data: PlanFormData) => {
     if (!isSignedIn) {
@@ -79,7 +122,7 @@ const Index = () => {
           contexto: data.contexto,
         },
         planEfectivo,
-        user?.id
+        user?.id,
       );
 
       // Guardamos los créditos que devolvió n8n
@@ -89,17 +132,25 @@ const Index = () => {
         plan: plan.plan,
       });
 
-      setResult({ status: "ready", content: plan.content, meta: data, tipo: plan.tipo });
+      setResult({
+        status: "ready",
+        content: plan.content,
+        meta: data,
+        tipo: plan.tipo,
+      });
     } catch (err) {
       const mensaje = err instanceof Error ? err.message : "Error desconocido";
 
       if (mensaje.includes("cuota") || mensaje.includes("limite")) {
         toast.error("Usaste tu planificación gratuita de hoy", {
-          description: "Volvé mañana o sumate a Ohana Pro para generar sin límites.",
+          description:
+            "Volvé mañana o sumate a Ohana Pro para generar sin límites.",
           duration: 6000,
         });
       } else {
-        toast.error("No pudimos generar tu planificación", { description: mensaje });
+        toast.error("No pudimos generar tu planificación", {
+          description: mensaje,
+        });
       }
 
       setResult({ status: "idle" });
@@ -110,7 +161,6 @@ const Index = () => {
 
   return (
     <main className="min-h-screen">
-
       {/* ═══ HERO ═══════════════════════════════════════════════ */}
       <section className="relative bg-gradient-warm overflow-hidden">
         <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-cream/25 blur-[120px] pointer-events-none" />
@@ -123,18 +173,27 @@ const Index = () => {
 
           <div className="max-w-3xl mx-auto text-center text-cream mb-10 animate-fade-up">
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl leading-[1.05]">
-              Tu clase de mañana,<br />lista esta noche.
+              Tu clase de mañana,
+              <br />
+              lista esta noche.
             </h1>
             <p className="font-serif-elegant text-lg sm:text-xl mt-5 text-cream/85 max-w-2xl mx-auto leading-relaxed">
-              Llegás a casa cansada. Mañana tenés que presentar la planificación.
+              Llegás a casa cansada. Mañana tenés que presentar la
+              planificación.
               <br className="hidden sm:block" />
-              <span className="text-cream font-medium"> Ohana la genera en segundos — gratis, sin vueltas.</span>
+              <span className="text-cream font-medium">
+                {" "}
+                Ohana la genera en segundos — gratis, sin vueltas.
+              </span>
             </p>
           </div>
 
           {!esResultado && (
             <>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
+              <div
+                className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10 animate-fade-up"
+                style={{ animationDelay: "0.1s" }}
+              >
                 {isSignedIn ? (
                   <button
                     onClick={scrollToForm}
@@ -145,7 +204,11 @@ const Index = () => {
                     <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
                   </button>
                 ) : (
-                  <SignInButton mode="modal" afterSignInUrl={window.location.href} afterSignUpUrl={window.location.href}>
+                  <SignInButton
+                    mode="modal"
+                    afterSignInUrl={window.location.href}
+                    afterSignUpUrl={window.location.href}
+                  >
                     <button className="group flex items-center gap-2 bg-coral text-cream font-semibold px-8 py-3.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-base">
                       <Sparkles className="w-4 h-4" />
                       Generar planificación gratis
@@ -154,18 +217,30 @@ const Index = () => {
                   </SignInButton>
                 )}
                 <span className="text-cream/50 text-sm">
-                  {isSignedIn ? `Hola, ${userName} 👋` : "1 clic con Google · Sin tarjeta"}
+                  {isSignedIn
+                    ? `Hola, ${userName} 👋`
+                    : "1 clic con Google · Sin tarjeta"}
                 </span>
               </div>
 
-              <div className="flex items-center justify-center gap-6 sm:gap-10 mb-14 animate-fade-up" style={{ animationDelay: "0.18s" }}>
+              <div
+                className="flex items-center justify-center gap-6 sm:gap-10 mb-14 animate-fade-up"
+                style={{ animationDelay: "0.18s" }}
+              >
                 {STATS.map((s) => (
-                  <div key={s.label} className="flex flex-col items-center text-cream">
+                  <div
+                    key={s.label}
+                    className="flex flex-col items-center text-cream"
+                  >
                     <div className="flex items-center gap-1.5 text-cream/60 mb-0.5">
                       {s.icon}
-                      <span className="text-[11px] uppercase tracking-widest font-semibold">{s.label}</span>
+                      <span className="text-[11px] uppercase tracking-widest font-semibold">
+                        {s.label}
+                      </span>
                     </div>
-                    <span className="font-display text-2xl leading-none">{s.value}</span>
+                    <span className="font-display text-2xl leading-none">
+                      {s.value}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -179,23 +254,30 @@ const Index = () => {
                 onClick={() => setDevPro((p) => !p)}
                 className={`text-xs px-4 py-1.5 rounded-full border transition-all ${devPro ? "bg-amber-300/20 border-amber-300/40 text-amber-300" : "bg-cream/10 border-cream/20 text-cream/60"}`}
               >
-                {devPro ? "✦ Modo PRO activo" : "Modo FREE activo"} — clic para cambiar
+                {devPro ? "✦ Modo PRO activo" : "Modo FREE activo"} — clic para
+                cambiar
               </button>
             </div>
           )}
 
-          {/* ─── Contador de créditos ─────────────────────────── */}
-          {isSignedIn && credits && (
-            <CreditosChip credits={credits} />
-          )}
-
           {/* Formulario / Skeleton / Resultado */}
           <div ref={formRef} className="px-2 scroll-mt-8">
+            {/* ─── Contador de créditos — siempre visible en el área del form ── */}
+            {isSignedIn && credits && result.status !== "loading" && (
+              <CreditosChip credits={credits} />
+            )}
+
             {result.status === "loading" ? (
+              <PlanificationSkeleton />
+            ) : loadingCredits && isSignedIn ? (
               <PlanificationSkeleton />
             ) : result.status === "ready" ? (
               <div className="space-y-8">
-                <PlanificationResult content={result.content} meta={result.meta} tipo={result.tipo} />
+                <PlanificationResult
+                  content={result.content}
+                  meta={result.meta}
+                  tipo={result.tipo}
+                />
                 <div className="text-center">
                   <button
                     onClick={() => setResult({ status: "idle" })}
@@ -237,34 +319,51 @@ const CreditosChip = ({ credits }: { credits: CreditState }) => {
   const { creditosRestantes, creditosBienvenida, plan } = credits;
 
   // Créditos de bienvenida activos (free con bienvenida > 0)
-  if (creditosBienvenida !== null && creditosBienvenida >= 0 && plan === "free") {
+  if (
+    creditosBienvenida !== null &&
+    creditosBienvenida > 0 &&
+    plan === "free"
+  ) {
     return (
-      <div className="flex justify-center mb-4">
-        <div className="flex items-center gap-2 bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold px-4 py-2 rounded-full">
+      <div className="flex justify-center mb-5">
+        <div className="flex items-center gap-2.5 bg-amber-500 text-amber-950 text-sm font-bold px-5 py-2.5 rounded-full shadow-lg">
+          <Zap className="w-4 h-4" />
+          🎁 Tenés {creditosBienvenida} planificaciones Pro gratuitas para
+          probar
+        </div>
+      </div>
+    );
+  }
+
+  // Bienvenida agotada
+  if (
+    creditosBienvenida !== null &&
+    creditosBienvenida === 0 &&
+    plan === "free"
+  ) {
+    return (
+      <div className="flex justify-center mb-5">
+        <div className="flex items-center gap-2 bg-cream/10 border border-cream/20 text-cream/60 text-xs font-semibold px-4 py-2 rounded-full">
           <Zap className="w-3.5 h-3.5" />
-          {creditosBienvenida === 0
-            ? "Usaste tus 5 planificaciones de bienvenida — quedás en plan Free (1/día)"
-            : `Te quedan ${creditosBienvenida} planificación${creditosBienvenida !== 1 ? "es" : ""} de bienvenida`}
+          Tus planificaciones de bienvenida se agotaron — plan Free (1/día)
         </div>
       </div>
     );
   }
 
   // Plan pago — cuota diaria
-  if (creditosRestantes !== null) {
-    const esPro = plan === "pro" || plan === "starter";
-    const limite = plan === "pro" ? 10 : plan === "starter" ? 5 : 1;
-
+  if (creditosRestantes !== null && (plan === "pro" || plan === "starter")) {
+    const limite = plan === "pro" ? 10 : 5;
     return (
-      <div className="flex justify-center mb-4">
-        <div className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full border ${
-          creditosRestantes === 0
-            ? "bg-red-500/15 border-red-500/30 text-red-300"
-            : esPro
-            ? "bg-cream/10 border-cream/15 text-cream/60"
-            : "bg-cream/10 border-cream/15 text-cream/60"
-        }`}>
-          {esPro ? <Crown className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+      <div className="flex justify-center mb-5">
+        <div
+          className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full border ${
+            creditosRestantes === 0
+              ? "bg-red-500/15 border-red-500/30 text-red-300"
+              : "bg-cream/10 border-cream/20 text-cream/60"
+          }`}
+        >
+          <Crown className="w-3.5 h-3.5" />
           {creditosRestantes === 0
             ? "Llegaste al límite de hoy — volvé mañana"
             : `Te quedan ${creditosRestantes} de ${limite} planificaciones de hoy`}
@@ -278,38 +377,69 @@ const CreditosChip = ({ credits }: { credits: CreditState }) => {
 
 // ─── Tabla FREE vs PRO ───────────────────────────────────────────
 const FILAS = [
-  { label: "Planificación completa (inicio, desarrollo, cierre)", free: true, pro: true },
+  {
+    label: "Planificación completa (inicio, desarrollo, cierre)",
+    free: true,
+    pro: true,
+  },
   { label: "Objetivo y contenidos didácticos", free: true, pro: true },
   { label: "Recursos sugeridos y evaluación", free: true, pro: true },
   { label: "Contexto de tu grupo real", free: false, pro: true },
   { label: "Tips exclusivos para el docente", free: false, pro: true },
-  { label: "Descarga en PDF con formato institucional", free: false, pro: true },
+  {
+    label: "Descarga en PDF con formato institucional",
+    free: false,
+    pro: true,
+  },
   { label: "Planificaciones ilimitadas", free: false, pro: true },
 ];
 
-const ComparativaFreePro = ({ onScrollToForm }: { onScrollToForm: () => void }) => (
+const ComparativaFreePro = ({
+  onScrollToForm,
+}: {
+  onScrollToForm: () => void;
+}) => (
   <section className="py-20 bg-cream-soft">
     <div className="container">
-      <p className="text-center text-ink/40 text-xs tracking-[0.3em] uppercase font-semibold mb-3">¿Cuál es para mí?</p>
-      <h2 className="font-display text-3xl sm:text-4xl text-ink text-center mb-12">Gratis o Pro — las dos funcionan</h2>
+      <p className="text-center text-ink/40 text-xs tracking-[0.3em] uppercase font-semibold mb-3">
+        ¿Cuál es para mí?
+      </p>
+      <h2 className="font-display text-3xl sm:text-4xl text-ink text-center mb-12">
+        Gratis o Pro — las dos funcionan
+      </h2>
 
       <div className="max-w-2xl mx-auto bg-cream rounded-3xl border border-cream-soft shadow-card-pro overflow-hidden">
         <div className="grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-4 bg-brand/10 border-b border-cream-soft">
           <span />
-          <span className="text-center text-ink/50 text-xs font-semibold uppercase tracking-widest">Free</span>
+          <span className="text-center text-ink/50 text-xs font-semibold uppercase tracking-widest">
+            Free
+          </span>
           <span className="text-center text-amber-700 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-1">
             <Crown className="w-3 h-3" /> Pro
           </span>
         </div>
 
         {FILAS.map((fila, i) => (
-          <div key={i} className={`grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-3.5 items-center ${i < FILAS.length - 1 ? "border-b border-cream-soft/60" : ""}`}>
-            <span className="text-ink/75 text-sm font-serif-elegant">{fila.label}</span>
-            <span className="flex justify-center">
-              {fila.free ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />}
+          <div
+            key={i}
+            className={`grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-3.5 items-center ${i < FILAS.length - 1 ? "border-b border-cream-soft/60" : ""}`}
+          >
+            <span className="text-ink/75 text-sm font-serif-elegant">
+              {fila.label}
             </span>
             <span className="flex justify-center">
-              {fila.pro ? <CheckCircle2 className="w-4 h-4 text-amber-500" /> : <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />}
+              {fila.free ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              ) : (
+                <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />
+              )}
+            </span>
+            <span className="flex justify-center">
+              {fila.pro ? (
+                <CheckCircle2 className="w-4 h-4 text-amber-500" />
+              ) : (
+                <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />
+              )}
             </span>
           </div>
         ))}
@@ -317,7 +447,10 @@ const ComparativaFreePro = ({ onScrollToForm }: { onScrollToForm: () => void }) 
         <div className="grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-5 bg-brand/5 border-t border-cream-soft">
           <span />
           <div className="flex justify-center">
-            <button onClick={onScrollToForm} className="text-xs text-ink/60 hover:text-ink underline underline-offset-2 transition-colors whitespace-nowrap">
+            <button
+              onClick={onScrollToForm}
+              className="text-xs text-ink/60 hover:text-ink underline underline-offset-2 transition-colors whitespace-nowrap"
+            >
               Empezar gratis
             </button>
           </div>
