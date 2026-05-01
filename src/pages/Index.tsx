@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { useUser, useClerk, SignInButton } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowDown,
   Sparkles,
@@ -29,9 +30,9 @@ type ResultState =
       content: string;
       meta: PlanFormData;
       tipo: "free" | "pro";
+      planId: string | null;
     };
 
-// Estado de créditos que llega desde n8n tras cada generación
 interface CreditState {
   creditosRestantes: number | null;
   creditosBienvenida: number | null;
@@ -46,11 +47,12 @@ const STATS = [
 
 const Index = () => {
   const formRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const scrollToForm = () =>
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const { isSignedIn, user } = useUser();
-  const { openSignIn, signOut } = useClerk();
+  const { openSignIn } = useClerk();
 
   const isPro =
     (user?.publicMetadata?.plan as string) === "pro" ||
@@ -67,18 +69,16 @@ const Index = () => {
   };
 
   const [devPro, setDevPro] = useState(false);
-
   const [result, setResult] = useState<ResultState>({ status: "idle" });
-
-  // ─── Créditos ────────────────────────────────────────────────
   const [credits, setCredits] = useState<CreditState | null>(null);
   const [loadingCredits, setLoadingCredits] = useState(true);
 
   const tieneBienvenida =
     (credits?.creditosBienvenida ?? 0) > 0 && credits?.plan === "free";
-  const planEfectivo = import.meta.env.DEV ? devPro : isPro || tieneBienvenida;
+  const planEfectivo = import.meta.env.DEV
+    ? devPro || tieneBienvenida
+    : isPro || tieneBienvenida;
 
-  // Cargar créditos al entrar si el usuario ya está logueado
   useEffect(() => {
     if (!isSignedIn || !user?.id) return;
     fetch("https://n8n.valy.agency/webhook/ohana-usuario-perfil", {
@@ -105,7 +105,6 @@ const Index = () => {
       handleLoginRequired();
       return;
     }
-
     setResult({ status: "loading" });
 
     try {
@@ -124,23 +123,21 @@ const Index = () => {
         planEfectivo,
         user?.id,
       );
-
-      // Guardamos los créditos que devolvió n8n
       setCredits({
         creditosRestantes: plan.creditosRestantes,
         creditosBienvenida: plan.creditosBienvenida,
         plan: plan.plan,
       });
-
       setResult({
         status: "ready",
         content: plan.content,
         meta: data,
         tipo: plan.tipo,
+        planId: plan.planId,
       });
+      console.log("[Ohana] result completo:", plan);
     } catch (err) {
       const mensaje = err instanceof Error ? err.message : "Error desconocido";
-
       if (mensaje.includes("cuota") || mensaje.includes("limite")) {
         toast.error("Usaste tu planificación gratuita de hoy", {
           description:
@@ -152,7 +149,6 @@ const Index = () => {
           description: mensaje,
         });
       }
-
       setResult({ status: "idle" });
     }
   };
@@ -161,7 +157,6 @@ const Index = () => {
 
   return (
     <main className="min-h-screen">
-      {/* ═══ HERO ═══════════════════════════════════════════════ */}
       <section className="relative bg-gradient-warm overflow-hidden">
         <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-cream/25 blur-[120px] pointer-events-none" />
         <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-coral/12 blur-[140px] pointer-events-none" />
@@ -247,7 +242,6 @@ const Index = () => {
             </>
           )}
 
-          {/* Toggle DEV */}
           {import.meta.env.DEV && (
             <div className="flex justify-center mb-4">
               <button
@@ -260,11 +254,12 @@ const Index = () => {
             </div>
           )}
 
-          {/* Formulario / Skeleton / Resultado */}
           <div ref={formRef} className="px-2 scroll-mt-8">
-            {/* ─── Contador de créditos — siempre visible en el área del form ── */}
             {isSignedIn && credits && result.status !== "loading" && (
-              <CreditosChip credits={credits} />
+              <CreditosChip
+                credits={credits}
+                onVerPlanes={() => navigate("/precios")}
+              />
             )}
 
             {result.status === "loading" ? (
@@ -275,6 +270,7 @@ const Index = () => {
               <div className="space-y-8">
                 <PlanificationResult
                   content={result.content}
+                  planId={result.planId}
                   meta={result.meta}
                   tipo={result.tipo}
                 />
@@ -291,6 +287,8 @@ const Index = () => {
               <PlanForm
                 isLoggedIn={isSignedIn ?? false}
                 isPro={planEfectivo}
+                esBienvenida={tieneBienvenida}
+                creditosBienvenida={credits?.creditosBienvenida ?? 0}
                 onLoginRequired={handleLoginRequired}
                 onSubmit={handleGenerate}
               />
@@ -299,14 +297,18 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ═══ CÓMO FUNCIONA ══════════════════════════════════════ */}
       {!esResultado && (
         <section className="bg-gradient-ink">
           <HowItWorks />
         </section>
       )}
 
-      {!esResultado && <ComparativaFreePro onScrollToForm={scrollToForm} />}
+      {!esResultado && (
+        <ComparativaFreePro
+          onScrollToForm={scrollToForm}
+          onVerPlanes={() => navigate("/precios")}
+        />
+      )}
 
       <ProPlans />
       <PartnersBar />
@@ -314,11 +316,16 @@ const Index = () => {
   );
 };
 
-// ─── Chip contador de créditos ───────────────────────────────────
-const CreditosChip = ({ credits }: { credits: CreditState }) => {
+// ─── Chip contador de créditos ────────────────────────────────────
+const CreditosChip = ({
+  credits,
+  onVerPlanes,
+}: {
+  credits: CreditState;
+  onVerPlanes: () => void;
+}) => {
   const { creditosRestantes, creditosBienvenida, plan } = credits;
 
-  // Créditos de bienvenida activos (free con bienvenida > 0)
   if (
     creditosBienvenida !== null &&
     creditosBienvenida > 0 &&
@@ -335,7 +342,6 @@ const CreditosChip = ({ credits }: { credits: CreditState }) => {
     );
   }
 
-  // Bienvenida agotada
   if (
     creditosBienvenida !== null &&
     creditosBienvenida === 0 &&
@@ -343,15 +349,26 @@ const CreditosChip = ({ credits }: { credits: CreditState }) => {
   ) {
     return (
       <div className="flex justify-center mb-5">
-        <div className="flex items-center gap-2 bg-cream/10 border border-cream/20 text-cream/60 text-xs font-semibold px-4 py-2 rounded-full">
-          <Zap className="w-3.5 h-3.5" />
-          Tus planificaciones de bienvenida se agotaron — plan Free (1/día)
+        <div className="flex items-center gap-3 bg-ink-soft border border-amber-500/30 rounded-2xl px-5 py-3.5 max-w-md w-full">
+          <div className="flex-1">
+            <p className="text-amber-300 font-semibold text-sm">
+              Agotaste tus 5 planificaciones Pro
+            </p>
+            <p className="text-cream/50 text-xs mt-0.5">
+              Seguís con 1 gratis por día, o pasate a Pro para hasta 10.
+            </p>
+          </div>
+          <button
+            onClick={onVerPlanes}
+            className="shrink-0 bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold text-xs px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap"
+          >
+            Ver planes
+          </button>
         </div>
       </div>
     );
   }
 
-  // Plan pago — cuota diaria
   if (creditosRestantes !== null && (plan === "pro" || plan === "starter")) {
     const limite = plan === "pro" ? 10 : 5;
     return (
@@ -375,8 +392,10 @@ const CreditosChip = ({ credits }: { credits: CreditState }) => {
   return null;
 };
 
-// ─── Tabla FREE vs PRO ───────────────────────────────────────────
+// ─── Tabla FREE vs PRO ────────────────────────────────────────────
 const FILAS = [
+  { label: "1 planificación por día", free: true, pro: false },
+  { label: "Hasta 10 planificaciones por día", free: false, pro: true },
   {
     label: "Planificación completa (inicio, desarrollo, cierre)",
     free: true,
@@ -386,18 +405,16 @@ const FILAS = [
   { label: "Recursos sugeridos y evaluación", free: true, pro: true },
   { label: "Contexto de tu grupo real", free: false, pro: true },
   { label: "Tips exclusivos para el docente", free: false, pro: true },
-  {
-    label: "Descarga en PDF con formato institucional",
-    free: false,
-    pro: true,
-  },
-  { label: "Planificaciones ilimitadas", free: false, pro: true },
+  { label: "Descarga en PDF y Word", free: false, pro: true },
+  { label: "Historial de planificaciones", free: false, pro: true },
 ];
 
 const ComparativaFreePro = ({
   onScrollToForm,
+  onVerPlanes,
 }: {
   onScrollToForm: () => void;
+  onVerPlanes: () => void;
 }) => (
   <section className="py-20 bg-cream-soft">
     <div className="container">
@@ -415,7 +432,7 @@ const ComparativaFreePro = ({
             Free
           </span>
           <span className="text-center text-amber-700 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-1">
-            <Crown className="w-3 h-3" /> Pro
+            <Crown className="w-3 h-3" /> Esencial / Completo
           </span>
         </div>
 
@@ -455,9 +472,12 @@ const ComparativaFreePro = ({
             </button>
           </div>
           <div className="flex justify-center">
-            <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200 whitespace-nowrap">
-              Próximamente
-            </span>
+            <button
+              onClick={onVerPlanes}
+              className="text-xs text-amber-700 font-semibold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full border border-amber-200 whitespace-nowrap transition-colors"
+            >
+              Ver planes
+            </button>
           </div>
         </div>
       </div>

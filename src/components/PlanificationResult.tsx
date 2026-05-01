@@ -2,13 +2,16 @@ import { useState } from "react";
 import {
   Sparkles, BookOpen, Target, GraduationCap, Crown, Clock,
   Lightbulb, ChevronRight, FileText, FlaskConical, Package, Star,
-  Download, FileEdit,
+  Download, FileEdit, ThumbsUp, ThumbsDown
 } from "lucide-react";
 import { descargarPlanificacionPDF } from "@/services/pdfGenerator";
 import { descargarPlanificacionDOCX } from "@/services/docxGenerator";
 
+const N8N_BASE = "https://n8n.valy.agency/webhook";
+
 interface PlanificationResultProps {
   content: string;
+  planId?: string;
   meta: {
     docente: string;
     institucion: string;
@@ -29,7 +32,69 @@ interface Section {
   tiempo?: string;
 }
 
-// ─── Renderer de markdown simple ────────────────────────────────
+// ─── Feedback buttons ────────────────────────────────────────────
+const FeedbackButtons = ({
+  planId, contenido, materia, grado, tema, tipo,
+}: {
+  planId: string;
+  contenido: string;
+  materia: string;
+  grado: string;
+  tema: string;
+  tipo: string;
+}) => {
+  const [feedback, setFeedback] = useState<"like" | "dislike" | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const enviarFeedback = async (tipo_feedback: "like" | "dislike") => {
+    if (feedback || loading) return;
+    setLoading(true);
+    try {
+      await fetch(`${N8N_BASE}/ohana-feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId, feedback: tipo_feedback, contenido, materia, grado, tema, tipo }),
+      });
+      setFeedback(tipo_feedback);
+    } catch {
+      // silencioso
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (feedback) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-2 text-sm">
+        {feedback === "like"
+          ? <><ThumbsUp className="w-4 h-4 text-emerald-500" /><span className="text-emerald-500">Gracias por tu valoración</span></>
+          : <><ThumbsDown className="w-4 h-4 text-ink/40" /><span className="text-ink/40">Gracias, vamos a mejorar</span></>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-4 py-2">
+      <span className="text-ink/40 text-xs">¿Esta planificación te resultó útil?</span>
+      <button
+        onClick={() => enviarFeedback("like")}
+        disabled={loading}
+        className="flex items-center gap-1.5 text-ink/40 hover:text-emerald-600 transition-colors text-sm font-medium disabled:opacity-50"
+      >
+        <ThumbsUp className="w-4 h-4" /> Sí
+      </button>
+      <button
+        onClick={() => enviarFeedback("dislike")}
+        disabled={loading}
+        className="flex items-center gap-1.5 text-ink/40 hover:text-red-500 transition-colors text-sm font-medium disabled:opacity-50"
+      >
+        <ThumbsDown className="w-4 h-4" /> No
+      </button>
+    </div>
+  );
+};
+
+// ─── Renderer de markdown simple ─────────────────────────────────
 function renderMarkdown(texto: string): React.ReactNode {
   const lineas = texto.split("\n");
   return lineas.map((linea, i) => {
@@ -60,7 +125,7 @@ function renderMarkdown(texto: string): React.ReactNode {
   });
 }
 
-// ─── Parser de secciones ────────────────────────────────────────
+// ─── Parser de secciones ─────────────────────────────────────────
 function parsearSecciones(texto: string): Section[] {
   const normalizado = texto.replace(/\*\*([A-ZÁÉÍÓÚÑ\s]+)\*\*/g, (_, titulo) => titulo.trim());
   const secciones: Section[] = [];
@@ -116,7 +181,7 @@ function parsearSecciones(texto: string): Section[] {
   return secciones;
 }
 
-// ─── Config visual por sección ──────────────────────────────────
+// ─── Config visual por sección ───────────────────────────────────
 const SECCION_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; border: string }> = {
   objetivo:   { icon: <Target className="w-4 h-4" />,       color: "text-blue-700",    bg: "bg-blue-50",    border: "border-blue-100" },
   contenidos: { icon: <FileText className="w-4 h-4" />,     color: "text-violet-700",  bg: "bg-violet-50",  border: "border-violet-100" },
@@ -126,21 +191,22 @@ const SECCION_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg:
   recursos:   { icon: <Package className="w-4 h-4" />,      color: "text-slate-700",   bg: "bg-slate-50",   border: "border-slate-100" },
   evaluacion: { icon: <Star className="w-4 h-4" />,         color: "text-rose-700",    bg: "bg-rose-50",    border: "border-rose-100" },
   tips:       { icon: <Lightbulb className="w-4 h-4" />,    color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200" },
-  raw:        { icon: <FileText className="w-4 h-4" />,      color: "text-ink/70",      bg: "bg-cream-soft", border: "border-cream" },
+  raw:        { icon: <FileText className="w-4 h-4" />,     color: "text-ink/70",      bg: "bg-cream-soft", border: "border-cream" },
 };
 
-// ─── Componente principal ───────────────────────────────────────
-export const PlanificationResult = ({ content, meta, tipo }: PlanificationResultProps) => {
+// ─── Componente principal ────────────────────────────────────────
+export const PlanificationResult = ({ content, planId, meta, tipo }: PlanificationResultProps) => {
   const secciones = parsearSecciones(content);
   const [descargandoDocx, setDescargandoDocx] = useState(false);
 
   const handlePDF = () => descargarPlanificacionPDF(content, meta, tipo);
-
   const handleDOCX = async () => {
     setDescargandoDocx(true);
     await descargarPlanificacionDOCX(content, meta, tipo);
     setDescargandoDocx(false);
   };
+
+  console.log("[PlanificationResult] planId recibido:", planId);
 
   return (
     <article className="w-full max-w-2xl mx-auto animate-fade-up">
@@ -153,17 +219,13 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <h3 className="font-display text-2xl text-ink leading-tight">
-                Tu planificación está lista
-              </h3>
+              <h3 className="font-display text-2xl text-ink leading-tight">Tu planificación está lista</h3>
               {tipo === "pro" ? (
                 <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
                   <Crown className="w-2.5 h-2.5" /> PRO
                 </span>
               ) : (
-                <span className="text-[10px] font-semibold text-ink/40 bg-ink/5 border border-ink/10 px-2 py-0.5 rounded-full">
-                  FREE
-                </span>
+                <span className="text-[10px] font-semibold text-ink/40 bg-ink/5 border border-ink/10 px-2 py-0.5 rounded-full">FREE</span>
               )}
             </div>
             <p className="font-serif-elegant italic text-ink/55 text-sm">
@@ -172,7 +234,6 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
           </div>
         </div>
 
-        {/* Meta pills */}
         <div className="grid grid-cols-3 gap-2 mt-5">
           <MetaPill icon={<BookOpen className="w-3 h-3" />} label="Materia" value={meta.materia} />
           <MetaPill icon={<GraduationCap className="w-3 h-3" />} label="Grado" value={meta.grado} />
@@ -188,23 +249,35 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
       </div>
 
       {/* Footer */}
-      <div className="bg-cream rounded-b-3xl border border-t-0 border-cream-soft px-8 py-6 shadow-card-pro">
+      <div className="bg-cream rounded-b-3xl border border-t-0 border-cream-soft px-8 py-6 shadow-card-pro space-y-4">
+
+        {/* Feedback */}
+        {planId && (
+          <div className="border-b border-cream-soft pb-4">
+            <FeedbackButtons
+              planId={planId}
+              contenido={content}
+              materia={meta.materia}
+              grado={meta.grado}
+              tema={meta.tema}
+              tipo={tipo}
+            />
+          </div>
+        )}
+
+        {/* Descarga */}
         {tipo === "pro" ? (
           <div className="space-y-3">
-            <p className="font-serif-elegant italic text-ink/40 text-xs text-center mb-1">
+            <p className="font-serif-elegant italic text-ink/40 text-xs text-center">
               Descargá en el formato que necesites
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* PDF */}
               <button
                 onClick={handlePDF}
                 className="flex-1 flex items-center justify-center gap-2 bg-coral text-cream font-semibold px-5 py-2.5 rounded-full shadow-coral hover:shadow-coral-lg hover:-translate-y-0.5 transition-all duration-200 text-sm"
               >
-                <Download className="w-4 h-4" />
-                Descargar PDF
+                <Download className="w-4 h-4" /> Descargar PDF
               </button>
-
-              {/* Word */}
               <button
                 onClick={handleDOCX}
                 disabled={descargandoDocx}
@@ -222,9 +295,7 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
             <Crown className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-ink text-sm font-medium">
-                Descargá en PDF y personalizá para tu grupo real
-              </p>
+              <p className="text-ink text-sm font-medium">Descargá en PDF y personalizá para tu grupo real</p>
               <p className="text-ink/55 text-xs mt-1">
                 Con Ohana Pro podés indicar el contexto de tu clase y recibir una planificación adaptada a tus alumnos reales.
               </p>
@@ -232,12 +303,11 @@ export const PlanificationResult = ({ content, meta, tipo }: PlanificationResult
           </div>
         )}
       </div>
-
     </article>
   );
 };
 
-// ─── Tarjeta de sección ─────────────────────────────────────────
+// ─── Tarjeta de sección ──────────────────────────────────────────
 const SeccionCard = ({ seccion }: { seccion: Section }) => {
   const config = SECCION_CONFIG[seccion.key] || SECCION_CONFIG.raw;
   const esTips = seccion.key === "tips";
@@ -264,7 +334,7 @@ const SeccionCard = ({ seccion }: { seccion: Section }) => {
   );
 };
 
-// ─── Pill de metadato ───────────────────────────────────────────
+// ─── Pill de metadato ────────────────────────────────────────────
 const MetaPill = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
   <div className="bg-brand-soft/40 rounded-xl px-3 py-2 border border-brand/20">
     <div className="flex items-center gap-1 text-ink/50 text-[10px] uppercase tracking-wider font-semibold mb-0.5">
