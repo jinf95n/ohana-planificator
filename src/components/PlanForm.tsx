@@ -120,7 +120,7 @@ export const PlanForm = ({
   // ─── Texto del botón ──────────────────────────────────────────
   const btnLabel = () => {
     if (!isLoggedIn) return (
-      <><Lock className="w-4 h-4 mr-2" />Iniciá sesión para generar tu planificación</>
+      <><Lock className="w-4 h-4 mr-2 text-sm" />Iniciá sesión para continuar</>
     );
     if (esBienvenida) return (
       <><Sparkles className="w-4 h-4 mr-2" />Generar Planificación Pro (regalo)</>
