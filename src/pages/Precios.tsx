@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useClerk } from "@clerk/clerk-react";
 import {
-  CheckCircle2, ArrowLeft, Sparkles, Crown,
-  Zap, BookOpen, FileDown, Users, Clock, Star
+  CheckCircle2,
+  ArrowLeft,
+  Sparkles,
+  Crown,
+  Zap,
+  BookOpen,
+  FileDown,
+  Users,
+  Clock,
+  Star,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 
@@ -93,23 +101,32 @@ const FAQS = [
 export const Precios = () => {
   const navigate = useNavigate();
   const { isSignedIn } = useUser();
-  const [facturacion, setFacturacion] = useState<"mensual" | "anual">("mensual");
+  const [facturacion, setFacturacion] = useState<"mensual" | "anual">(
+    "mensual",
+  );
   const [faqAbierta, setFaqAbierta] = useState<number | null>(null);
+  const { openSignIn } = useClerk();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const precio = (plan: typeof PLANES.esencial) =>
     facturacion === "mensual" ? plan.mensual : plan.anualMensualizado;
 
   const formatARS = (n: number) =>
-    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+    new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 0,
+    }).format(n);
 
   return (
     <div className="min-h-screen bg-ink text-cream">
       <div className="relative bg-gradient-warm">
-        <Navbar onLogin={() => {}} />
+        <Navbar onLogin={() => openSignIn()} />
       </div>
 
       <main className="max-w-5xl mx-auto px-6 py-16">
-
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="text-center mb-14">
           <div className="inline-flex items-center gap-2 bg-coral/10 border border-coral/20 text-coral text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
@@ -120,7 +137,8 @@ export const Precios = () => {
             Elegí tu plan
           </h1>
           <p className="text-cream/60 text-lg max-w-xl mx-auto">
-            Dos cafés por mes y nunca más llegás a casa sin tener la clase lista.
+            Dos cafés por mes y nunca más llegás a casa sin tener la clase
+            lista.
           </p>
 
           {/* Toggle mensual/anual */}
@@ -158,7 +176,6 @@ export const Precios = () => {
 
         {/* ── Cards de planes ─────────────────────────────────── */}
         <div className="grid sm:grid-cols-3 gap-6 mb-16">
-
           {/* Free */}
           <div className="bg-ink-soft border border-ink-border rounded-2xl p-6 flex flex-col">
             <div className="mb-6">
@@ -166,17 +183,24 @@ export const Precios = () => {
                 <div className="w-8 h-8 rounded-lg bg-cream/10 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-cream/50" />
                 </div>
-                <span className="text-cream/50 text-xs font-semibold uppercase tracking-widest">Gratis</span>
+                <span className="text-cream/50 text-xs font-semibold uppercase tracking-widest">
+                  Gratis
+                </span>
               </div>
               <div className="mb-1">
                 <span className="font-display text-4xl text-cream">$0</span>
               </div>
-              <p className="text-cream/40 text-sm">Para empezar a conocer Ohana</p>
+              <p className="text-cream/40 text-sm">
+                Para empezar a conocer Ohana
+              </p>
             </div>
 
             <ul className="space-y-3 flex-1 mb-6">
               {FREE_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm text-cream/60">
+                <li
+                  key={f}
+                  className="flex items-start gap-2.5 text-sm text-cream/60"
+                >
                   <CheckCircle2 className="w-4 h-4 text-cream/30 shrink-0 mt-0.5" />
                   {f}
                 </li>
@@ -211,11 +235,26 @@ export const Precios = () => {
         {/* ── Social proof ─────────────────────────────────────── */}
         <div className="grid sm:grid-cols-3 gap-4 mb-16">
           {[
-            { icon: <Users className="w-4 h-4" />, valor: "400+", label: "docentes activos" },
-            { icon: <Star className="w-4 h-4" />, valor: "4.9", label: "valoración promedio" },
-            { icon: <Clock className="w-4 h-4" />, valor: "30 seg", label: "por planificación" },
+            {
+              icon: <Users className="w-4 h-4" />,
+              valor: "400+",
+              label: "docentes activos",
+            },
+            {
+              icon: <Star className="w-4 h-4" />,
+              valor: "4.9",
+              label: "valoración promedio",
+            },
+            {
+              icon: <Clock className="w-4 h-4" />,
+              valor: "30 seg",
+              label: "por planificación",
+            },
           ].map((s) => (
-            <div key={s.label} className="bg-ink-soft border border-ink-border rounded-2xl px-5 py-4 flex items-center gap-4">
+            <div
+              key={s.label}
+              className="bg-ink-soft border border-ink-border rounded-2xl px-5 py-4 flex items-center gap-4"
+            >
               <div className="text-coral/60">{s.icon}</div>
               <div>
                 <p className="font-display text-xl text-cream">{s.valor}</p>
@@ -227,7 +266,9 @@ export const Precios = () => {
 
         {/* ── FAQ ──────────────────────────────────────────────── */}
         <div className="max-w-2xl mx-auto">
-          <h2 className="font-display text-2xl text-cream text-center mb-8">Preguntas frecuentes</h2>
+          <h2 className="font-display text-2xl text-cream text-center mb-8">
+            Preguntas frecuentes
+          </h2>
           <div className="space-y-2">
             {FAQS.map((faq, i) => (
               <div
@@ -238,8 +279,14 @@ export const Precios = () => {
                   onClick={() => setFaqAbierta(faqAbierta === i ? null : i)}
                   className="w-full flex items-center justify-between px-5 py-4 text-left"
                 >
-                  <span className="text-cream text-sm font-medium">{faq.q}</span>
-                  <span className={`text-cream/40 text-lg transition-transform ${faqAbierta === i ? "rotate-45" : ""}`}>+</span>
+                  <span className="text-cream text-sm font-medium">
+                    {faq.q}
+                  </span>
+                  <span
+                    className={`text-cream/40 text-lg transition-transform ${faqAbierta === i ? "rotate-45" : ""}`}
+                  >
+                    +
+                  </span>
                 </button>
                 {faqAbierta === i && (
                   <div className="px-5 pb-4 text-cream/55 text-sm leading-relaxed border-t border-ink-border pt-3">
@@ -253,7 +300,9 @@ export const Precios = () => {
 
         {/* ── Footer CTA ───────────────────────────────────────── */}
         <div className="text-center mt-16 py-12 border-t border-ink-border">
-          <p className="text-cream/40 text-sm mb-2">¿Todavía no probaste Ohana?</p>
+          <p className="text-cream/40 text-sm mb-2">
+            ¿Todavía no probaste Ohana?
+          </p>
           <button
             onClick={() => navigate("/")}
             className="inline-flex items-center gap-2 bg-coral text-cream font-semibold px-8 py-3 rounded-full hover:bg-coral/90 transition-all shadow-coral"
@@ -262,7 +311,6 @@ export const Precios = () => {
             Empezar gratis — 5 planificaciones Pro de regalo
           </button>
         </div>
-
       </main>
     </div>
   );
@@ -270,15 +318,19 @@ export const Precios = () => {
 
 // ─── Plan card ────────────────────────────────────────────────────
 const PlanCard = ({
-  plan, facturacion, precio, formatARS
+  plan,
+  facturacion,
+  precio,
+  formatARS,
 }: {
   plan: typeof PLANES.esencial;
   facturacion: "mensual" | "anual";
   precio: number;
   formatARS: (n: number) => string;
 }) => (
-  <div className={`relative bg-gradient-to-b ${plan.color} border ${plan.border} rounded-2xl p-6 flex flex-col ${"destacado" in plan && plan.destacado ? "ring-1 ring-amber-500/30" : ""}`}>
-
+  <div
+    className={`relative bg-gradient-to-b ${plan.color} border ${plan.border} rounded-2xl p-6 flex flex-col ${"destacado" in plan && plan.destacado ? "ring-1 ring-amber-500/30" : ""}`}
+  >
     {"destacado" in plan && plan.destacado && (
       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
         <span className="bg-amber-500 text-amber-950 text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap">
@@ -289,22 +341,29 @@ const PlanCard = ({
 
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${plan.badge}`}>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center ${plan.badge}`}
+        >
           {plan.icon}
         </div>
-        <span className={`text-xs font-semibold uppercase tracking-widest ${plan.accent}`}>
+        <span
+          className={`text-xs font-semibold uppercase tracking-widest ${plan.accent}`}
+        >
           {plan.nombre}
         </span>
       </div>
 
       <div className="flex items-end gap-1 mb-1">
-        <span className="font-display text-4xl text-cream">{formatARS(precio)}</span>
+        <span className="font-display text-4xl text-cream">
+          {formatARS(precio)}
+        </span>
         <span className="text-cream/40 text-sm mb-1.5">/mes</span>
       </div>
 
       {facturacion === "anual" && (
         <p className="text-cream/40 text-xs">
-          {formatARS(("anual" in plan ? plan.anual : 0) as number)} por año · ahorrás {formatARS(plan.mensual * 12 - (plan.anual as number))}
+          {formatARS(("anual" in plan ? plan.anual : 0) as number)} por año ·
+          ahorrás {formatARS(plan.mensual * 12 - (plan.anual as number))}
         </p>
       )}
       <p className="text-cream/50 text-sm mt-2">{plan.descripcion}</p>
