@@ -52,7 +52,7 @@ const Index = () => {
   const scrollToForm = () =>
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const { isSignedIn, user , isLoaded} = useUser();
+  const { isSignedIn, user, isLoaded } = useUser();
   const { openSignIn } = useClerk();
 
   const { mostrarSplash, ocultarSplash } = useSplash(isLoaded, isSignedIn);
@@ -435,59 +435,63 @@ const ComparativaFreePro = ({
         Gratis o Pro — las dos funcionan
       </h2>
 
-      <div className="max-w-2xl mx-auto bg-cream rounded-3xl border border-cream-soft shadow-card-pro overflow-hidden">
-        <div className="grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-4 bg-brand/10 border-b border-cream-soft">
-          <span />
-          <span className="text-center text-ink/50 text-xs font-semibold uppercase tracking-widest">
-            Free
-          </span>
-          <span className="text-center text-amber-700 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-1">
-            <Crown className="w-3 h-3" /> Esencial / Completo
-          </span>
-        </div>
+      <div className="max-w-2xl mx-auto overflow-x-auto">
+        <div className="min-w-[480px] bg-cream rounded-3xl border border-cream-soft shadow-card-pro overflow-hidden">
+          <div className="max-w-2xl mx-auto bg-cream rounded-3xl border border-cream-soft shadow-card-pro overflow-hidden">
+            <div className="grid grid-cols-[1fr_80px_200px] gap-4 px-6 py-4 bg-brand/10 border-b border-cream-soft">
+              <span />
+              <span className="text-center text-ink/50 text-xs font-semibold uppercase tracking-widest">
+                Free
+              </span>
+              <span className="text-center text-amber-700 text-xs font-semibold uppercase tracking-widest flex items-center justify-center gap-1">
+                <Crown className="w-3 h-3" /> Esencial / Completo
+              </span>
+            </div>
 
-        {FILAS.map((fila, i) => (
-          <div
-            key={i}
-            className={`grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-3.5 items-center ${i < FILAS.length - 1 ? "border-b border-cream-soft/60" : ""}`}
-          >
-            <span className="text-ink/75 text-sm font-serif-elegant">
-              {fila.label}
-            </span>
-            <span className="flex justify-center">
-              {fila.free ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />
-              )}
-            </span>
-            <span className="flex justify-center">
-              {fila.pro ? (
-                <CheckCircle2 className="w-4 h-4 text-amber-500" />
-              ) : (
-                <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />
-              )}
-            </span>
-          </div>
-        ))}
+            {FILAS.map((fila, i) => (
+              <div
+                key={i}
+                className={`grid grid-cols-[1fr_80px_200px] gap-4 px-6 py-3.5 items-center ${i < FILAS.length - 1 ? "border-b border-cream-soft/60" : ""}`}
+              >
+                <span className="text-ink/75 text-sm font-serif-elegant">
+                  {fila.label}
+                </span>
+                <span className="flex justify-center">
+                  {fila.free ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  ) : (
+                    <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />
+                  )}
+                </span>
+                <span className="flex justify-center">
+                  {fila.pro ? (
+                    <CheckCircle2 className="w-4 h-4 text-amber-500" />
+                  ) : (
+                    <span className="w-4 h-px bg-ink/15 mx-auto block mt-2" />
+                  )}
+                </span>
+              </div>
+            ))}
 
-        <div className="grid grid-cols-[1fr_80px_80px] gap-4 px-6 py-5 bg-brand/5 border-t border-cream-soft">
-          <span />
-          <div className="flex justify-center">
-            <button
-              onClick={onScrollToForm}
-              className="text-xs text-ink/60 hover:text-ink underline underline-offset-2 transition-colors whitespace-nowrap"
-            >
-              Empezar gratis
-            </button>
-          </div>
-          <div className="flex justify-center">
-            <button
-              onClick={onVerPlanes}
-              className="text-xs text-amber-700 font-semibold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full border border-amber-200 whitespace-nowrap transition-colors"
-            >
-              Ver planes
-            </button>
+            <div className="grid grid-cols-[1fr_80px_200px] gap-4 px-6 py-5 bg-brand/5 border-t border-cream-soft">
+              <span />
+              <div className="flex justify-center">
+                <button
+                  onClick={onScrollToForm}
+                  className="text-xs text-ink/60 hover:text-ink underline underline-offset-2 transition-colors whitespace-nowrap"
+                >
+                  Empezar gratis
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={onVerPlanes}
+                  className="text-xs text-amber-700 font-semibold bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full border border-amber-200 whitespace-nowrap transition-colors"
+                >
+                  Ver planes
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
