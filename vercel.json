@@ -1,4 +1,9 @@
 {
+  "redirects": [
+    { "source": "/precios", "destination": "/planificador/precios", "permanent": true },
+    { "source": "/micuenta", "destination": "/planificador/cuenta", "permanent": true },
+    { "source": "/admin", "destination": "/planificador/admin", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
