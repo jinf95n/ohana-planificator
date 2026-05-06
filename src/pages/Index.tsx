@@ -17,7 +17,6 @@ import { OhanaLogo } from "@/components/OhanaLogo";
 import { PlanForm, PlanFormData } from "@/components/PlanForm";
 import { PlanificationSkeleton } from "@/components/PlanificationSkeleton";
 import { PlanificationResult } from "@/components/PlanificationResult";
-import { ProPlans } from "@/components/ProPlans";
 import { PartnersBar } from "@/components/PartnersBar";
 import { HowItWorks } from "@/components/HowItWorks";
 import { generarPlanificacion } from "@/services/generation";
@@ -320,7 +319,6 @@ const Index = () => {
         />
       )}
 
-      <ProPlans />
       <PartnersBar />
     </main>
   );
