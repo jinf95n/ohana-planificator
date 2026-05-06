@@ -23,7 +23,7 @@ const PASOS = [
 
 export const HowItWorks = () => {
   return (
-    <section className="py-8 sm:py-20">
+    <section className="py-8 sm:pb-20 pt-0">
       <div className="container">
         <p className="text-center text-cream/60 text-xs tracking-[0.3em] uppercase font-semibold mb-10">
           Cómo funciona
