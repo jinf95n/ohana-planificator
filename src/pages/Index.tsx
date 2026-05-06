@@ -168,7 +168,6 @@ const Index = () => {
         <Navbar onLogin={() => openSignIn()} />
 
         <div className="container relative pt-10 pb-20 sm:pb-28">
-          <OhanaLogo className="mb-10" />
 
           <div className="max-w-3xl mx-auto text-center text-cream mb-10 animate-fade-up">
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl leading-[1.05]">
